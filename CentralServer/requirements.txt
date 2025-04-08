@@ -63,7 +63,7 @@ sqlmodel==0.0.24
 starlette==0.46.1
 tomlkit==0.13.2
 typer==0.15.2
-typing-extensions==4.13.0
+typing-extensions==4.13.1
 typing-inspection==0.4.0
 uvicorn==0.34.0
 uvloop==0.21.0 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
