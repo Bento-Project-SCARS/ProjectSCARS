@@ -14,6 +14,7 @@ export default function Login() {
     </AuthProvider>
   );
 }
+
 function LoginPage() {
   const { is_authenticated } = useAuth();
   const router = useRouter();
