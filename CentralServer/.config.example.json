@@ -21,7 +21,7 @@
     "database": "projectscars"
   },
   "test_database": {
-    "filepath": "./tests/data/test.db"
+    "filepath": "./tests/data/database.db"
   },
   "authentication": {
     "signing_secret_key": "UPDATE_THIS_VALUE",
