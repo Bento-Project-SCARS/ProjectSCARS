@@ -6,7 +6,7 @@ export const Program = {
 
 export const Connections = {
   CentralServer: {
-    endpoint: "http://localhost:8000",
+    endpoint: "http://localhost:8000/api/v1",
   },
   LocalServer: {
     // TODO: WIP
