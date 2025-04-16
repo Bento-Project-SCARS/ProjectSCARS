@@ -3,8 +3,6 @@ name: Tests - Central Server
 
 on:
   push:
-    branches-ignore:
-      - main
     paths:
       - "CentralServer/**"
   pull_request:
@@ -60,5 +58,4 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           directory: CentralServer/
-          flags: central-server
           fail_ci_if_error: true

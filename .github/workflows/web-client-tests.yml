@@ -3,8 +3,6 @@ name: Tests - Web Client
 
 on:
   push:
-    branches-ignore:
-      - main
     paths:
       - "WebClient/**"
   pull_request:

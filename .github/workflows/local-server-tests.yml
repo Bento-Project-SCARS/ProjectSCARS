@@ -3,8 +3,6 @@ name: Tests - Local Server
 
 on:
   push:
-    branches-ignore:
-      - main
     paths:
       - "LocalServer/**"
   pull_request:
@@ -60,5 +58,4 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           directory: LocalServer/
-          flags: local-server
           fail_ci_if_error: true
