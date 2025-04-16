@@ -32,9 +32,10 @@ def get_db_session() -> Generator[Session, None, None]:
         yield session
 
 
-def populate_db() -> None:
+def populate_db() -> bool:
     """Populate the database with tables."""
 
+    populated = False
     logger.warning("Creating database tables")
     SQLModel.metadata.create_all(bind=engine)
 
@@ -45,6 +46,7 @@ def populate_db() -> None:
             logger.debug("Roles: %s", permissions.ROLES)
             session.add_all(permissions.ROLES)
             session.commit()
+            populated = True
 
     # Create default superintendent user
     with next(get_db_session()) as session:
@@ -58,3 +60,6 @@ def populate_db() -> None:
                 ),
                 session,
             )
+            populated = True
+
+    return populated

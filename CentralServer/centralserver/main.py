@@ -13,7 +13,7 @@ logger = LoggerFactory(
 ).get_logger(__name__)
 
 log_app_info(logger)
-populate_db()
+_ = populate_db()
 
 
 app = FastAPI(

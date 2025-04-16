@@ -164,6 +164,27 @@ class Authentication:
                 "Signing or encryption secret key is empty in configuration file."
             )
 
+        if signing_secret_key == "UPDATE_THIS_VALUE" or len(signing_secret_key) != 64:
+            raise ValueError(
+                "Signing secret key is not valid. Please update the configuration file."
+            )
+
+        if (
+            refresh_signing_secret_key == "UPDATE_THIS_VALUE"
+            or len(refresh_signing_secret_key) != 64
+        ):
+            raise ValueError(
+                "Refresh signing secret key is not valid. Please update the configuration file."
+            )
+
+        if (
+            encryption_secret_key == "UPDATE_THIS_VALUE"
+            or len(encryption_secret_key) != 32
+        ):
+            raise ValueError(
+                "Encryption secret key is not valid. Please update the configuration file."
+            )
+
         self.signing_secret_key: str = signing_secret_key
         self.refresh_signing_secret_key: str = refresh_signing_secret_key
         self.encryption_secret_key: str = encryption_secret_key
