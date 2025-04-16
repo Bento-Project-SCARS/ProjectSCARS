@@ -10,6 +10,7 @@ dependencies = [
     "pyjwt>=2.10.1",
     "pymysql>=1.1.1",
     "python-jose[cryptography]>=3.4.0",
+    "slowapi>=0.1.9",
     "sqlalchemy>=2.0.40",
     "sqlmodel>=0.0.24",
 ]
