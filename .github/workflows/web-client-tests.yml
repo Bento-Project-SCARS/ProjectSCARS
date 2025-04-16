@@ -3,6 +3,8 @@ name: Tests - Web Client
 
 on:
   push:
+    branches-ignore:
+      - main
     paths:
       - "WebClient/**"
   pull_request:
@@ -11,7 +13,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  test-web-client:
+    name: Test Web Client
     runs-on: ubuntu-latest
     defaults:
       run:

@@ -3,6 +3,8 @@ name: Tests - Central Server
 
 on:
   push:
+    branches-ignore:
+      - main
     paths:
       - "CentralServer/**"
   pull_request:
@@ -11,8 +13,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    name: python
+  test-central-server:
+    name: Test Central Server
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -60,4 +62,3 @@ jobs:
           directory: CentralServer/
           flags: central-server
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}

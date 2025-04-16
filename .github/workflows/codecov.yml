@@ -1,0 +1,135 @@
+---
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test-central-server:
+    name: Test Central Server
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: CentralServer
+    env:
+      UV_CACHE_DIR: /tmp/.uv-cache
+    strategy:
+      matrix:
+        python-version:
+          - "3.12"
+          - "3.13"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.24"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Restore uv cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: uv-${{ runner.os }}-${{ hashFiles('CentralServer/uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-${{ hashFiles('CentralServer/uv.lock') }}
+            uv-${{ runner.os }}
+
+      - name: Install project
+        run: uv sync --all-extras
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Minimize uv cache
+        run: uv cache prune --ci
+
+      - name: Upload coverage report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CentralServer-coverage
+          path: CentralServer/coverage.xml
+          if-no-files-found: error
+          overwrite: true
+
+  test-local-server:
+    name: Test Local Server
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: LocalServer
+    env:
+      UV_CACHE_DIR: /tmp/.uv-cache
+    strategy:
+      matrix:
+        python-version:
+          - "3.12"
+          - "3.13"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.24"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Restore uv cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.UV_CACHE_DIR }}
+          key: uv-${{ runner.os }}-${{ hashFiles('LocalServer/uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-${{ hashFiles('LocalServer/uv.lock') }}
+            uv-${{ runner.os }}
+
+      - name: Install project
+        run: uv sync --all-extras
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Minimize uv cache
+        run: uv cache prune --ci
+
+      - name: Upload coverage report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalServer-coverage
+          path: LocalServer/coverage.xml
+          if-no-files-found: error
+          overwrite: true
+
+  upload-to-codecov:
+    name: Upload Coverage Reports to Codecov
+    runs-on: ubuntu-latest
+    needs: [test-central-server, test-local-server]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download central server code coverage report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: "CentralServer-coverage"
+          path: CentralServer
+
+      - name: Download local server code coverage report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: "LocalServer-coverage"
+          path: LocalServer
+
+      - name: Upload coverage data to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
