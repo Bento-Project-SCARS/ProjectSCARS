@@ -84,6 +84,7 @@ def log_app_info(logger: logging.Logger):
     logger.debug(f"{info.Configuration.default_encoding=}")
 
     logger.debug(f"{app_config.debug.enabled=}")
+    logger.debug(f"{app_config.debug.rate_limiter=}")
     logger.debug(f"{app_config.debug.use_test_db=}")
 
     logger.debug(f"{app_config.logging.filepath=}")

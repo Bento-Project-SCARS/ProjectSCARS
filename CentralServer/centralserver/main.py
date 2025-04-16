@@ -1,11 +1,14 @@
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from centralserver import info
 from centralserver.internals.config_handler import app_config
 from centralserver.internals.db_handler import populate_db
 from centralserver.internals.logger import LoggerFactory, log_app_info
+from centralserver.internals.rate_limiter import limiter
 from centralserver.routers import auth_routes, misc_routes, reports_routes, users_routes
 
 logger = LoggerFactory(
@@ -21,6 +24,15 @@ app = FastAPI(
     title=info.Program.name,
     version=".".join(map(str, info.Program.version)),
     root_path="/api",
+)
+
+# Rate limiting via SlowAPI...
+#                                  ...Funny name, by the way.
+limiter.enabled = app_config.debug.rate_limiter
+app.state.limiter = limiter
+app.add_exception_handler(
+    RateLimitExceeded,
+    _rate_limit_exceeded_handler,  # pyright: ignore[reportArgumentType]
 )
 
 app.include_router(auth_routes.router)

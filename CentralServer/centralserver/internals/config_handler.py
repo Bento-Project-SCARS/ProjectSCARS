@@ -8,15 +8,22 @@ from centralserver import info
 class Debug:
     """The debugging configuration."""
 
-    def __init__(self, enabled: bool | None = None, use_test_db: bool | None = None):
+    def __init__(
+        self,
+        enabled: bool | None = None,
+        rate_limiter: bool | None = None,
+        use_test_db: bool | None = None,
+    ):
         """Create a configuration object for debugging.
 
         Args:
             enabled: If True, enable debugging mode.
+            rate_limiter: If True, enable rate limiting.
             use_test_db: If True, use the test SQLite database instead of the production database.
         """
 
         self.enabled: bool = enabled or False
+        self.rate_limiter: bool = rate_limiter or True
         self.use_test_db: bool = use_test_db or False
 
 
@@ -276,6 +283,7 @@ def read_config_file(
         return AppConfig(
             debug=Debug(
                 enabled=debug_config.get("enabled", None),
+                rate_limiter=debug_config.get("rate_limiter", None),
                 use_test_db=debug_config.get("use_test_db", None),
             ),
             logging=Logging(

@@ -1,6 +1,7 @@
 {
   "debug": {
     "enabled": true,
+    "rate_limiter": false,
     "use_test_db": true
   },
   "logging": {

@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 from sqlmodel import Session
 
@@ -21,6 +21,7 @@ from centralserver.internals.models import (
     UserLoginRequest,
     UserPublic,
 )
+from centralserver.internals.rate_limiter import limiter
 from centralserver.internals.user_handler import create_user
 
 logger = LoggerFactory().get_logger(__name__)
@@ -35,10 +36,14 @@ logged_in_dep = Annotated[DecodedJWTToken, Depends(verify_access_token)]
 
 
 @router.post("/create", status_code=status.HTTP_201_CREATED, response_model=UserPublic)
+@limiter.limit(  # pyright: ignore[reportUntypedFunctionDecorator,reportUnknownMemberType]
+    "5/minute"
+)
 async def create_new_user(
     new_user: UserLoginRequest,
     token: logged_in_dep,
     session: Annotated[Session, Depends(get_db_session)],
+    request: Request,
 ) -> UserPublic:
     """Create a new user in the database.
 
@@ -65,9 +70,13 @@ async def create_new_user(
 
 
 @router.post("/token", response_model=JWTToken)
+@limiter.limit(  # pyright: ignore[reportUntypedFunctionDecorator,reportUnknownMemberType]
+    "1/second"
+)
 async def request_access_token(
     data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: Annotated[Session, Depends(get_db_session)],
+    request: Request,
 ) -> JWTToken:
     """Get an access token for a user.
 
