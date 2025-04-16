@@ -1,6 +1,48 @@
 services:
-  db:
-    image: docker.io/library/mysql:latest
+  seaweedfs_master:
+    image: docker.io/chrislusf/seaweedfs:3.85
+    ports:
+      - 9333:9333
+      - 19333:19333
+      - 9324:9324
+    command: "master -ip=master -ip.bind=0.0.0.0 -metricsPort=9324"
+
+  seaweedfs_volume:
+    image: docker.io/chrislusf/seaweedfs:3.85
+    ports:
+      - 8080:8080
+      - 18080:18080
+      - 9325:9325
+    command: 'volume -mserver="master:9333" -ip.bind=0.0.0.0 -port=8080  -metricsPort=9325'
+    depends_on:
+      - seaweedfs_master
+
+  seaweedfs_filer:
+    image: docker.io/chrislusf/seaweedfs:3.85
+    ports:
+      - 8888:8888
+      - 18888:18888
+      - 9326:9326
+    command: 'filer -master="master:9333" -ip.bind=0.0.0.0 -metricsPort=9326'
+    tty: true
+    stdin_open: true
+    depends_on:
+      - seaweedfs_master
+      - seaweedfs_volume
+
+  seaweedfs_s3:
+    image: docker.io/chrislusf/seaweedfs:3.85
+    ports:
+      - 8333:8333
+      - 9327:9327
+    command: 's3 -filer="filer:8888" -ip.bind=0.0.0.0 -metricsPort=9327'
+    depends_on:
+      - seaweedfs_master
+      - seaweedfs_volume
+      - seaweedfs_filer
+
+  mysql:
+    image: docker.io/library/mysql:9.3.0
     restart: always
     ports:
       - 3306:3306
@@ -10,7 +52,7 @@ services:
       - .env
 
   phpmyadmin:
-    image: docker.io/library/phpmyadmin:latest
+    image: docker.io/library/phpmyadmin:5.2.2
     restart: always
     ports:
       - 32512:80
