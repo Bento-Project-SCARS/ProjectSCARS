@@ -13,7 +13,7 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@mantine/charts": "^7.17.4",
+    "@mantine/charts": "^7.17.5",
     "@mantine/core": "^7.17.4",
     "@mantine/dates": "^7.17.4",
     "@mantine/dropzone": "^7.17.4",
