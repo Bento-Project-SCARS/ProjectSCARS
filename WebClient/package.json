@@ -21,7 +21,7 @@
     "@mantine/hooks": "^7.17.5",
     "@mantine/notifications": "^7.17.5",
     "@mantine/nprogress": "^7.17.5",
-    "@mantine/tiptap": "^7.17.5",
+    "@mantine/tiptap": "^8.0.0",
     "@tiptap/extension-link": "^2.11.7",
     "@tiptap/pm": "^2.11.9",
     "@tiptap/react": "^2.11.9",
