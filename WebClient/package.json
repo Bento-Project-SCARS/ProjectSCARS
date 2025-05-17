@@ -13,7 +13,7 @@
         "coverage": "vitest run --coverage"
     },
     "dependencies": {
-        "@gfazioli/mantine-onboarding-tour": "^1.0.4",
+        "@gfazioli/mantine-onboarding-tour": "^2.0.0",
         "@mantine/charts": "^8.0.1",
         "@mantine/core": "^8.0.1",
         "@mantine/dates": "^8.0.1",
