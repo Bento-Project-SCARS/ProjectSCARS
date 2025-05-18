@@ -37,7 +37,7 @@
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
         "react-easy-crop": "^5.4.1",
-        "react-scan": "^0.3.3",
+        "react-scan": "^0.3.4",
         "recharts": "^2.15.3"
     },
     "devDependencies": {
