@@ -19,7 +19,7 @@
         "@mantine/dates": "^8.0.1",
         "@mantine/dropzone": "^8.0.1",
         "@mantine/form": "^8.0.1",
-        "@mantine/hooks": "^8.0.1",
+        "@mantine/hooks": "^8.0.2",
         "@mantine/modals": "^8.0.1",
         "@mantine/notifications": "^8.0.1",
         "@mantine/nprogress": "^8.0.1",
