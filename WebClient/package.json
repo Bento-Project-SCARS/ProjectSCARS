@@ -28,7 +28,7 @@
         "@tabler/icons-react": "^3.34.0",
         "@tiptap/extension-link": "^2.13.0",
         "@tiptap/pm": "^2.11.9",
-        "@tiptap/react": "^2.13.0",
+        "@tiptap/react": "^2.14.0",
         "@tiptap/starter-kit": "^2.14.0",
         "dayjs": "^1.11.13",
         "ky": "^1.8.1",
