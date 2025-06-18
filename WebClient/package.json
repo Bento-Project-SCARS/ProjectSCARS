@@ -37,7 +37,7 @@
         "ky": "^1.8.1",
         "mantine-data-grid": "^0.2.3",
         "motion": "^12.18.1",
-        "next": "15.3.3",
+        "next": "15.3.4",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
         "react-easy-crop": "^5.4.2",
