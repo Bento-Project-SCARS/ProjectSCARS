@@ -27,7 +27,7 @@
         "@mantine/spotlight": "^8.1.1",
         "@mantine/tiptap": "^8.1.1",
         "@tabler/icons-react": "^3.34.0",
-        "@tiptap/extension-link": "^2.14.0",
+        "@tiptap/extension-link": "^2.22.0",
         "@tiptap/pm": "^2.14.1",
         "@tiptap/react": "^2.22.0",
         "@tiptap/starter-kit": "^2.22.0",
