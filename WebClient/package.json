@@ -14,7 +14,7 @@
     },
     "dependencies": {
         "@gfazioli/mantine-onboarding-tour": "^2.1.1",
-        "@mantine/carousel": "^8.1.1",
+        "@mantine/carousel": "^8.1.2",
         "@mantine/charts": "^8.1.1",
         "@mantine/core": "^8.1.1",
         "@mantine/dates": "^8.1.1",
