@@ -22,7 +22,7 @@
         "@mantine/form": "^8.1.1",
         "@mantine/hooks": "^8.1.1",
         "@mantine/modals": "^8.1.1",
-        "@mantine/notifications": "^8.1.1",
+        "@mantine/notifications": "^8.1.2",
         "@mantine/nprogress": "^8.1.1",
         "@mantine/spotlight": "^8.1.1",
         "@mantine/tiptap": "^8.1.1",
