@@ -43,7 +43,7 @@
         "react-dom": "^19.0.0",
         "react-easy-crop": "^5.4.2",
         "react-scan": "^0.3.4",
-        "recharts": "^2.15.4"
+        "recharts": "^3.0.0"
     },
     "devDependencies": {
         "@codecov/nextjs-webpack-plugin": "^1.9.1",
