@@ -45,24 +45,18 @@ const DashboardContent = memo(function DashboardContent() {
     const [isLoading, setIsLoading] = useState(true);
     const [isNotificationLoading, setIsNotificationLoading] = useState(true);
 
-    const handleStepClick = (index: number) => {
-        switch (index) {
-            case 0:
-                window.location.href = "/account/profile";
-                break;
-            case 1:
-                window.location.href = "/account/profile";
-                break;
-            case 2:
-                window.location.href = "/account/profile";
-                break;
-            case 3:
-                window.location.href = "/account/profile";
-                break;
-            default:
-                break;
+    const handleStepClick = useCallback((index: number) => {
+        const routes = [
+            "/account/profile", // Email verification
+            "/account/profile", // Profile completion
+            "/account/profile", // Profile picture
+            "/account/profile", // Two-factor auth
+        ];
+
+        if (index >= 0 && index < routes.length) {
+            window.location.href = routes[index];
         }
-    };
+    }, []);
 
     // Load user info and avatar
     useEffect(() => {
