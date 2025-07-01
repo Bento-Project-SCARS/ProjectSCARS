@@ -37,7 +37,7 @@
         "embla-carousel-react": "^8.6.0",
         "ky": "^1.8.1",
         "mantine-data-grid": "^0.2.3",
-        "motion": "^12.20.1",
+        "motion": "^12.22.0",
         "next": "15.3.4",
         "next-qrcode": "^2.5.1",
         "react": "^19.0.0",
