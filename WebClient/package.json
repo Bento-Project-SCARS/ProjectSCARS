@@ -28,7 +28,7 @@
         "@mantine/tiptap": "^8.1.2",
         "@tabler/icons-react": "^3.34.0",
         "@tiptap/extension-link": "^2.23.1",
-        "@tiptap/pm": "^2.14.1",
+        "@tiptap/pm": "^2.24.0",
         "@tiptap/react": "^2.23.1",
         "@tiptap/starter-kit": "^2.23.1",
         "dayjs": "^1.11.13",
