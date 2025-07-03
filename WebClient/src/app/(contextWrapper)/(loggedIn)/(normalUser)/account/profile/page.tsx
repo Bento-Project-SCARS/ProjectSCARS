@@ -23,6 +23,10 @@ import {
     verifyEmailV1AuthEmailVerifyPost,
     verifyMfaOtpV1AuthMfaOtpVerifyPost,
 } from "@/lib/api/csclient";
+import {
+    oauthUnlinkMicrosoftV1AuthOauthMicrosoftUnlinkGet,
+    oauthUnlinkFacebookV1AuthOauthFacebookUnlinkGet,
+} from "@/lib/api/oauth-temp";
 import { GetAllSchools } from "@/lib/api/school";
 import { LocalStorage, userAvatarConfig } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
@@ -130,7 +134,6 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
     const [showChangeEmailModal, setShowChangeEmailModal] = useState(false);
     const [oauthSupport, setOAuthSupport] = useState<{ google: boolean; microsoft: boolean; facebook: boolean }>({
         google: false,
-        // TODO: OAuth adapters below are not implemented yet.
         microsoft: false,
         facebook: false,
     });
@@ -1319,18 +1322,46 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                             </Text>
                         </div>
                     </Group>
-                    {userInfo?.oauthLinkedMicrosoftId ? (
+                    {userInfo?.oauthLinkedFacebookId ? (
                         <Button
                             variant="light"
                             color="blue"
                             size="xs"
                             disabled={!oauthSupport.facebook}
-                            onClick={() => {
-                                notifications.show({
-                                    title: "Coming Soon",
-                                    message: "Facebook account linking will be available soon",
-                                    color: "blue",
-                                });
+                            onClick={async () => {
+                                try {
+                                    const result = await oauthUnlinkFacebookV1AuthOauthFacebookUnlinkGet({
+                                        headers: { Authorization: GetAccessTokenHeader() },
+                                    });
+
+                                    if (result.error) {
+                                        throw new Error(
+                                            `Failed to unlink Facebook account: ${result.response.status} ${result.response.statusText}`
+                                        );
+                                    }
+
+                                    notifications.show({
+                                        title: "Unlink Successful",
+                                        message: "Your Facebook account has been unlinked successfully.",
+                                        color: "green",
+                                    });
+                                    
+                                    // Refresh user info
+                                    const userInfoResult = await getUserProfileEndpointV1UsersMeGet({
+                                        headers: { Authorization: GetAccessTokenHeader() },
+                                    });
+                                    if (!userInfoResult.error) {
+                                        const [updatedUserInfo, userPermissions] = userInfoResult.data as [UserPublic, string[]];
+                                        userCtx.updateUserInfo(updatedUserInfo, userPermissions, userCtx.userAvatar);
+                                    }
+                                } catch (error) {
+                                    console.error("Failed to unlink Facebook account:", error);
+                                    notifications.show({
+                                        title: "Unlink Failed",
+                                        message: "Failed to unlink your Facebook account. Please try again later.",
+                                        color: "red",
+                                    });
+                                }
                             }}
                         >
                             Unlink Account
@@ -1342,11 +1373,20 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                             size="xs"
                             disabled={!oauthSupport.facebook}
                             onClick={async () => {
-                                notifications.show({
-                                    title: "Coming Soon",
-                                    message: "Facebook account linking will be available soon",
-                                    color: "blue",
-                                });
+                                try {
+                                    const response = await fetch("http://localhost:8081/v1/auth/oauth/facebook/login");
+                                    const data = await response.json();
+                                    if (data.url) {
+                                        window.location.href = data.url;
+                                    }
+                                } catch (error) {
+                                    console.error("Error starting Facebook OAuth:", error);
+                                    notifications.show({
+                                        title: "Link Failed",
+                                        message: "Failed to start Facebook linking process.",
+                                        color: "red",
+                                    });
+                                }
                             }}
                         >
                             Link Account
@@ -1382,18 +1422,46 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                             </Text>
                         </div>
                     </Group>
-                    {userInfo?.oauthLinkedFacebookId ? (
+                    {userInfo?.oauthLinkedMicrosoftId ? (
                         <Button
                             variant="light"
                             color="indigo"
                             size="xs"
-                            disabled={!oauthSupport.facebook}
-                            onClick={() => {
-                                notifications.show({
-                                    title: "Coming Soon",
-                                    message: "Microsoft account unlinking will be available soon",
-                                    color: "blue",
-                                });
+                            disabled={!oauthSupport.microsoft}
+                            onClick={async () => {
+                                try {
+                                    const result = await oauthUnlinkMicrosoftV1AuthOauthMicrosoftUnlinkGet({
+                                        headers: { Authorization: GetAccessTokenHeader() },
+                                    });
+
+                                    if (result.error) {
+                                        throw new Error(
+                                            `Failed to unlink Microsoft account: ${result.response.status} ${result.response.statusText}`
+                                        );
+                                    }
+
+                                    notifications.show({
+                                        title: "Unlink Successful",
+                                        message: "Your Microsoft account has been unlinked successfully.",
+                                        color: "green",
+                                    });
+                                    
+                                    // Refresh user info
+                                    const userInfoResult = await getUserProfileEndpointV1UsersMeGet({
+                                        headers: { Authorization: GetAccessTokenHeader() },
+                                    });
+                                    if (!userInfoResult.error) {
+                                        const [updatedUserInfo, userPermissions] = userInfoResult.data as [UserPublic, string[]];
+                                        userCtx.updateUserInfo(updatedUserInfo, userPermissions, userCtx.userAvatar);
+                                    }
+                                } catch (error) {
+                                    console.error("Failed to unlink Microsoft account:", error);
+                                    notifications.show({
+                                        title: "Unlink Failed",
+                                        message: "Failed to unlink your Microsoft account. Please try again later.",
+                                        color: "red",
+                                    });
+                                }
                             }}
                         >
                             Unlink Account
@@ -1403,13 +1471,22 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                             variant="light"
                             color="indigo"
                             size="xs"
-                            disabled={!oauthSupport.facebook}
+                            disabled={!oauthSupport.microsoft}
                             onClick={async () => {
-                                notifications.show({
-                                    title: "Coming Soon",
-                                    message: "Microsoft account linking will be available soon",
-                                    color: "blue",
-                                });
+                                try {
+                                    const response = await fetch("http://localhost:8081/v1/auth/oauth/microsoft/login");
+                                    const data = await response.json();
+                                    if (data.url) {
+                                        window.location.href = data.url;
+                                    }
+                                } catch (error) {
+                                    console.error("Error starting Microsoft OAuth:", error);
+                                    notifications.show({
+                                        title: "Link Failed",
+                                        message: "Failed to start Microsoft linking process.",
+                                        color: "red",
+                                    });
+                                }
                             }}
                         >
                             Link Account
