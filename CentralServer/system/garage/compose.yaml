@@ -12,6 +12,19 @@ services:
             - centralserver-garage_data:/var/lib/garage/data
         restart: unless-stopped
 
+    centralserver-garage-webui:
+        image: khairul169/garage-webui:latest
+        ports:
+            - "8082:3909"
+        volumes:
+            - ./garage.toml:/etc/garage.toml:ro
+        environment:
+            API_BASE_URL: "http://centralserver-garage:3903"
+            S3_ENDPOINT_URL: "http://centralserver-garage:3900"
+        restart: unless-stopped
+        depends_on:
+            - centralserver-garage
+
 volumes:
     centralserver-garage_data:
     centralserver-garage_meta:
