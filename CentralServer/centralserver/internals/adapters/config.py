@@ -479,3 +479,98 @@ class GoogleOAuthAdapterConfig(OAuthAdapterConfig):
             "client_secret": self.client_secret,
             "redirect_uri": self.redirect_uri,
         }
+
+
+class FacebookOAuthAdapterConfig(OAuthAdapterConfig):
+    """Configuration for Facebook OAuth adapter."""
+
+    def __init__(
+        self,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        redirect_uri: str | None = None,
+    ):
+        """Initialize the Facebook OAuth adapter configuration.
+
+        Args:
+            client_id: The client ID for Facebook OAuth.
+            client_secret: The client secret for Facebook OAuth.
+            redirect_uri: The redirect URI for Facebook OAuth.
+        """
+
+        if client_id is None or client_secret is None or redirect_uri is None:
+            raise ValueError(
+                "The client ID, client secret, and redirect URI are required."
+            )
+
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.redirect_uri = redirect_uri
+
+    @property
+    def info(self) -> dict[str, Any]:
+        return {
+            "name": "Facebook",
+            "client_id": self.client_id,
+            "client_secret_set": self.client_secret != "",
+            "redirect_uri": self.redirect_uri,
+        }
+
+    def export(self) -> dict[str, Any]:
+        """Export the configuration to a dictionary."""
+
+        return {
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "redirect_uri": self.redirect_uri,
+        }
+
+
+class MicrosoftOAuthAdapterConfig(OAuthAdapterConfig):
+    """Configuration for Microsoft OAuth adapter."""
+
+    def __init__(
+        self,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        redirect_uri: str | None = None,
+        tenant: str | None = None,
+    ):
+        """Initialize the Microsoft OAuth adapter configuration.
+
+        Args:
+            client_id: The client ID for Microsoft OAuth.
+            client_secret: The client secret for Microsoft OAuth.
+            redirect_uri: The redirect URI for Microsoft OAuth.
+            tenant: The tenant ID for Microsoft OAuth (default: 'common').
+        """
+
+        if client_id is None or client_secret is None or redirect_uri is None:
+            raise ValueError(
+                "The client ID, client secret, and redirect URI are required."
+            )
+
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.redirect_uri = redirect_uri
+        self.tenant = tenant or "common"
+
+    @property
+    def info(self) -> dict[str, Any]:
+        return {
+            "name": "Microsoft",
+            "client_id": self.client_id,
+            "client_secret_set": self.client_secret != "",
+            "redirect_uri": self.redirect_uri,
+            "tenant": self.tenant,
+        }
+
+    def export(self) -> dict[str, Any]:
+        """Export the configuration to a dictionary."""
+
+        return {
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "redirect_uri": self.redirect_uri,
+            "tenant": self.tenant,
+        }

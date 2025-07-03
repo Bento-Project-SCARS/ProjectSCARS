@@ -8,6 +8,8 @@ from centralserver.internals.adapters.config import (
     DatabaseAdapterConfig,
     GarageObjectStoreAdapterConfig,
     GoogleOAuthAdapterConfig,
+    FacebookOAuthAdapterConfig,
+    MicrosoftOAuthAdapterConfig,
     LocalObjectStoreAdapterConfig,
     MinIOObjectStoreAdapterConfig,
     MySQLDatabaseConfig,
@@ -580,6 +582,13 @@ def read_config(
     oauth_google_config: dict[str, str] | None = (
         oauth_config.get("google", None) if oauth_config else None
     )
+    oauth_facebook_config: dict[str, str] | None = (
+        oauth_config.get("facebook", None) if oauth_config else None
+    )
+    oauth_microsoft_config: dict[str, str] | None = (
+        oauth_config.get("microsoft", None) if oauth_config else None
+    )
+    
     oauth_google_configs = (
         GoogleOAuthAdapterConfig(
             client_id=oauth_google_config.get("client_id", None),
@@ -589,8 +598,32 @@ def read_config(
         if oauth_google_config
         else None
     )
+    
+    oauth_facebook_configs = (
+        FacebookOAuthAdapterConfig(
+            client_id=oauth_facebook_config.get("client_id", None),
+            client_secret=oauth_facebook_config.get("client_secret", None),
+            redirect_uri=oauth_facebook_config.get("redirect_uri", None),
+        )
+        if oauth_facebook_config
+        else None
+    )
+    
+    oauth_microsoft_configs = (
+        MicrosoftOAuthAdapterConfig(
+            client_id=oauth_microsoft_config.get("client_id", None),
+            client_secret=oauth_microsoft_config.get("client_secret", None),
+            redirect_uri=oauth_microsoft_config.get("redirect_uri", None),
+            tenant=oauth_microsoft_config.get("tenant", None),
+        )
+        if oauth_microsoft_config
+        else None
+    )
+    
     oauth_configs = OAuthConfigs(
         google=oauth_google_configs,
+        facebook=oauth_facebook_configs,
+        microsoft=oauth_microsoft_configs,
     )
 
     return AppConfig(

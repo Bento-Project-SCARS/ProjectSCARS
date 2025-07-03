@@ -12,7 +12,11 @@ from sqlmodel import Session, select
 
 from centralserver import info
 from centralserver.internals import permissions
-from centralserver.internals.adapters.oauth import GoogleOAuthAdapter
+from centralserver.internals.adapters.oauth import (
+    GoogleOAuthAdapter,
+    FacebookOAuthAdapter,
+    MicrosoftOAuthAdapter,
+)
 from centralserver.internals.config_handler import app_config
 from centralserver.internals.logger import LoggerFactory
 from centralserver.internals.mail_handler import get_template, send_mail
@@ -517,6 +521,268 @@ async def oauth_google_authenticate(
         return (
             status.HTTP_404_NOT_FOUND,
             "User not found. Please login first and link your Google account.",
+        )
+
+    user.lastLoggedInTime = datetime.datetime.now(datetime.timezone.utc)
+    user.lastLoggedInIp = request.client.host if request.client else None
+
+    return (
+        status.HTTP_200_OK,
+        JWTToken(
+            uid=uuid.uuid4(),
+            access_token=await create_access_token(
+                user.id,
+                datetime.timedelta(
+                    minutes=app_config.authentication.access_token_expire_minutes
+                ),
+                False,
+            ),
+            refresh_token=await create_access_token(
+                user.id,
+                datetime.timedelta(
+                    minutes=app_config.authentication.refresh_token_expire_minutes
+                ),
+                True,
+            ),
+            token_type="bearer",
+        ),
+    )
+
+
+async def oauth_facebook_link(
+    code: str,
+    user_id: str,
+    facebook_oauth_adapter: FacebookOAuthAdapter,
+    session: Session,
+) -> bool:
+    """Link a Facebook account to a user.
+
+    Args:
+        code: The authorization code received from Facebook.
+        user_id: The ID of the user to link the Facebook account to.
+        facebook_oauth_adapter: The Facebook OAuth adapter instance.
+        session: The database session to use.
+
+    Returns:
+        True if the Facebook account was linked successfully, False otherwise.
+    """
+
+    token_url = "https://graph.facebook.com/v21.0/oauth/access_token"
+    data: dict[str, str] = {
+        "code": code,
+        "client_id": facebook_oauth_adapter.config.client_id,
+        "client_secret": facebook_oauth_adapter.config.client_secret,
+        "redirect_uri": facebook_oauth_adapter.config.redirect_uri,
+    }
+    response = httpx.post(token_url, data=data)
+    if response.status_code != 200:
+        logger.error(
+            "Failed to exchange authorization code for access token: %s", response.text
+        )
+        return False
+
+    access_token = response.json().get("access_token")
+    user_info = httpx.get(
+        f"https://graph.facebook.com/me?fields=id,name,email&access_token={access_token}",
+    )
+    if user_info.status_code != 200:
+        logger.error(
+            "Failed to retrieve user information from Facebook: %s", user_info.text
+        )
+        return False
+
+    user_data = user_info.json()
+    user = session.exec(select(User).where(User.id == user_id)).one_or_none()
+    if user is None:
+        logger.error("User with ID %s not found", user_id)
+        return False
+
+    user.oauthLinkedFacebookId = user_data.get("id", None)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    logger.info("User %s linked their Facebook account successfully", user.username)
+    return True
+
+
+async def oauth_facebook_authenticate(
+    code: str,
+    facebook_oauth_adapter: FacebookOAuthAdapter,
+    session: Session,
+    request: Request,
+) -> tuple[int, JWTToken | str]:
+    token_url = "https://graph.facebook.com/v21.0/oauth/access_token"
+    data: dict[str, str] = {
+        "code": code,
+        "client_id": facebook_oauth_adapter.config.client_id,
+        "client_secret": facebook_oauth_adapter.config.client_secret,
+        "redirect_uri": facebook_oauth_adapter.config.redirect_uri,
+    }
+    response = httpx.post(token_url, data=data)
+    if response.status_code != 200:
+        logger.error(
+            "Failed to exchange authorization code for access token: %s", response.text
+        )
+        return (
+            status.HTTP_400_BAD_REQUEST,
+            "Failed to exchange authorization code for access token.",
+        )
+
+    access_token = response.json().get("access_token")
+    user_info = httpx.get(
+        f"https://graph.facebook.com/me?fields=id,name,email&access_token={access_token}",
+    )
+    if user_info.status_code != 200:
+        logger.error(
+            "Failed to retrieve user information from Facebook: %s", user_info.text
+        )
+        return (
+            status.HTTP_400_BAD_REQUEST,
+            "Failed to retrieve user information from Facebook.",
+        )
+
+    user_data = user_info.json()
+    user = session.exec(
+        select(User).where(User.oauthLinkedFacebookId == user_data.get("id", None))
+    ).one_or_none()
+    if user is None:
+        return (
+            status.HTTP_404_NOT_FOUND,
+            "User not found. Please login first and link your Facebook account.",
+        )
+
+    user.lastLoggedInTime = datetime.datetime.now(datetime.timezone.utc)
+    user.lastLoggedInIp = request.client.host if request.client else None
+
+    return (
+        status.HTTP_200_OK,
+        JWTToken(
+            uid=uuid.uuid4(),
+            access_token=await create_access_token(
+                user.id,
+                datetime.timedelta(
+                    minutes=app_config.authentication.access_token_expire_minutes
+                ),
+                False,
+            ),
+            refresh_token=await create_access_token(
+                user.id,
+                datetime.timedelta(
+                    minutes=app_config.authentication.refresh_token_expire_minutes
+                ),
+                True,
+            ),
+            token_type="bearer",
+        ),
+    )
+
+
+async def oauth_microsoft_link(
+    code: str,
+    user_id: str,
+    microsoft_oauth_adapter: MicrosoftOAuthAdapter,
+    session: Session,
+) -> bool:
+    """Link a Microsoft account to a user.
+
+    Args:
+        code: The authorization code received from Microsoft.
+        user_id: The ID of the user to link the Microsoft account to.
+        microsoft_oauth_adapter: The Microsoft OAuth adapter instance.
+        session: The database session to use.
+
+    Returns:
+        True if the Microsoft account was linked successfully, False otherwise.
+    """
+
+    token_url = f"https://login.microsoftonline.com/{microsoft_oauth_adapter.config.tenant}/oauth2/v2.0/token"
+    data: dict[str, str] = {
+        "code": code,
+        "client_id": microsoft_oauth_adapter.config.client_id,
+        "client_secret": microsoft_oauth_adapter.config.client_secret,
+        "redirect_uri": microsoft_oauth_adapter.config.redirect_uri,
+        "grant_type": "authorization_code",
+    }
+    response = httpx.post(token_url, data=data)
+    if response.status_code != 200:
+        logger.error(
+            "Failed to exchange authorization code for access token: %s", response.text
+        )
+        return False
+
+    access_token = response.json().get("access_token")
+    user_info = httpx.get(
+        "https://graph.microsoft.com/v1.0/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    if user_info.status_code != 200:
+        logger.error(
+            "Failed to retrieve user information from Microsoft: %s", user_info.text
+        )
+        return False
+
+    user_data = user_info.json()
+    user = session.exec(select(User).where(User.id == user_id)).one_or_none()
+    if user is None:
+        logger.error("User with ID %s not found", user_id)
+        return False
+
+    user.oauthLinkedMicrosoftId = user_data.get("id", None)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    logger.info("User %s linked their Microsoft account successfully", user.username)
+    return True
+
+
+async def oauth_microsoft_authenticate(
+    code: str,
+    microsoft_oauth_adapter: MicrosoftOAuthAdapter,
+    session: Session,
+    request: Request,
+) -> tuple[int, JWTToken | str]:
+    token_url = f"https://login.microsoftonline.com/{microsoft_oauth_adapter.config.tenant}/oauth2/v2.0/token"
+    data: dict[str, str] = {
+        "code": code,
+        "client_id": microsoft_oauth_adapter.config.client_id,
+        "client_secret": microsoft_oauth_adapter.config.client_secret,
+        "redirect_uri": microsoft_oauth_adapter.config.redirect_uri,
+        "grant_type": "authorization_code",
+    }
+    response = httpx.post(token_url, data=data)
+    if response.status_code != 200:
+        logger.error(
+            "Failed to exchange authorization code for access token: %s", response.text
+        )
+        return (
+            status.HTTP_400_BAD_REQUEST,
+            "Failed to exchange authorization code for access token.",
+        )
+
+    access_token = response.json().get("access_token")
+    user_info = httpx.get(
+        "https://graph.microsoft.com/v1.0/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    if user_info.status_code != 200:
+        logger.error(
+            "Failed to retrieve user information from Microsoft: %s", user_info.text
+        )
+        return (
+            status.HTTP_400_BAD_REQUEST,
+            "Failed to retrieve user information from Microsoft.",
+        )
+
+    user_data = user_info.json()
+    user = session.exec(
+        select(User).where(User.oauthLinkedMicrosoftId == user_data.get("id", None))
+    ).one_or_none()
+    if user is None:
+        return (
+            status.HTTP_404_NOT_FOUND,
+            "User not found. Please login first and link your Microsoft account.",
         )
 
     user.lastLoggedInTime = datetime.datetime.now(datetime.timezone.utc)
