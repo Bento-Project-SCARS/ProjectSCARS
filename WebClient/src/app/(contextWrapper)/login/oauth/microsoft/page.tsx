@@ -7,7 +7,7 @@ import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconCheck } from "@tabler/icons-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 
 import {
     getUserAvatarEndpointV1UsersAvatarGet,
@@ -26,7 +26,9 @@ import { GetAccessTokenHeader } from "@/lib/utils/token";
 export default function OAuthMicrosoftPage(): React.ReactElement {
     return (
         <Paper>
-            <OAuthMicrosoftContent />
+            <Suspense fallback={<Center style={{ minHeight: "100vh" }}><Text>Loading...</Text></Center>}>
+                <OAuthMicrosoftContent />
+            </Suspense>
         </Paper>
     );
 }
@@ -61,7 +63,7 @@ function OAuthMicrosoftContent() {
 
                         if (result.error) {
                             throw new Error(
-                                `Failed to link Microsoft account: ${result.response.status} ${result.response.statusText}`
+                                `Failed to link Microsoft account: ${result.response?.status || 'Unknown'} ${result.response?.statusText || 'Error'}`
                             );
                         }
 
@@ -92,6 +94,7 @@ function OAuthMicrosoftContent() {
 
                 console.debug("User is not authenticated, proceeding with OAuth authentication.");
                 const result = await microsoftOauthCallbackV1AuthOauthMicrosoftCallbackGet({
+                    // @ts-expect-error - The SDK might not have the correct types yet
                     query: { code: code },
                 });
 

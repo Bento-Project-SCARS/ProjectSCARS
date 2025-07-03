@@ -1336,7 +1336,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
 
                                     if (result.error) {
                                         throw new Error(
-                                            `Failed to unlink Facebook account: ${result.response.status} ${result.response.statusText}`
+                                            `Failed to unlink Facebook account: ${result.response?.status || 'Unknown'} ${result.response?.statusText || 'Error'}`
                                         );
                                     }
 
@@ -1436,7 +1436,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
 
                                     if (result.error) {
                                         throw new Error(
-                                            `Failed to unlink Microsoft account: ${result.response.status} ${result.response.statusText}`
+                                            `Failed to unlink Microsoft account: ${result.response?.status || 'Unknown'} ${result.response?.statusText || 'Error'}`
                                         );
                                     }
 

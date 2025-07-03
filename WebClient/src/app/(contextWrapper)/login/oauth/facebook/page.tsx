@@ -7,7 +7,7 @@ import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconCheck } from "@tabler/icons-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 
 import {
     facebookOauthCallbackV1AuthOauthFacebookCallbackGet,
@@ -26,7 +26,9 @@ import { GetAccessTokenHeader } from "@/lib/utils/token";
 export default function OAuthFacebookPage(): React.ReactElement {
     return (
         <Paper>
-            <OAuthFacebookContent />
+            <Suspense fallback={<Center style={{ minHeight: "100vh" }}><Text>Loading...</Text></Center>}>
+                <OAuthFacebookContent />
+            </Suspense>
         </Paper>
     );
 }
@@ -61,7 +63,7 @@ function OAuthFacebookContent() {
 
                         if (result.error) {
                             throw new Error(
-                                `Failed to link Facebook account: ${result.response.status} ${result.response.statusText}`
+                                `Failed to link Facebook account: ${result.response?.status || 'Unknown'} ${result.response?.statusText || 'Error'}`
                             );
                         }
 
@@ -92,6 +94,7 @@ function OAuthFacebookContent() {
 
                 console.debug("User is not authenticated, proceeding with OAuth authentication.");
                 const result = await facebookOauthCallbackV1AuthOauthFacebookCallbackGet({
+                    // @ts-expect-error - The SDK might not have the correct types yet
                     query: { code: code },
                 });
 

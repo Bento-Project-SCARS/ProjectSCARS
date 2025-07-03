@@ -1,4 +1,5 @@
 // Temporary OAuth functions for Microsoft and Facebook until SDK is regenerated
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 
 export const oauthLinkMicrosoftV1AuthOauthMicrosoftLinkGet = async (options: { query: { code: string }; headers: { Authorization: string } }) => {
@@ -20,7 +21,7 @@ export const oauthLinkMicrosoftV1AuthOauthMicrosoftLinkGet = async (options: { q
         
         const data = await response.json();
         return { error: false, data };
-    } catch (error) {
+    } catch {
         return {
             error: true,
             response: { status: 500, statusText: 'Network error' }
@@ -44,7 +45,7 @@ export const oauthUnlinkMicrosoftV1AuthOauthMicrosoftUnlinkGet = async (options:
         
         const data = await response.json();
         return { error: false, data };
-    } catch (error) {
+    } catch {
         return {
             error: true,
             response: { status: 500, statusText: 'Network error' }
@@ -71,7 +72,7 @@ export const oauthLinkFacebookV1AuthOauthFacebookLinkGet = async (options: { que
         
         const data = await response.json();
         return { error: false, data };
-    } catch (error) {
+    } catch {
         return {
             error: true,
             response: { status: 500, statusText: 'Network error' }
@@ -95,7 +96,7 @@ export const oauthUnlinkFacebookV1AuthOauthFacebookUnlinkGet = async (options: {
         
         const data = await response.json();
         return { error: false, data };
-    } catch (error) {
+    } catch {
         return {
             error: true,
             response: { status: 500, statusText: 'Network error' }
