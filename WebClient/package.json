@@ -30,7 +30,7 @@
         "@tiptap/extension-link": "^2.24.0",
         "@tiptap/pm": "^2.14.1",
         "@tiptap/react": "^2.24.0",
-        "@tiptap/starter-kit": "^2.24.0",
+        "@tiptap/starter-kit": "^2.24.2",
         "dayjs": "^1.11.13",
         "embla-carousel": "^8.6.0",
         "embla-carousel-react": "^8.6.0",
