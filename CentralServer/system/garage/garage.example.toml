@@ -7,7 +7,7 @@ compression_level = 2
 
 rpc_bind_addr = "[::]:3901"
 rpc_public_addr = "0.0.0.0:3901"
-rpc_secret = "YOUR_RPC_SECRET"
+rpc_secret = "3079266a36fae7c676e65998949614278393dff33bc5ed0d8ca29536c4de2d7b"
 
 [s3_api]
 s3_region = "garage"
@@ -24,5 +24,5 @@ api_bind_addr = "[::]:3904"
 
 [admin]
 api_bind_addr = "[::]:3903"
-admin_token = "YOUR_ADMIN_TOKEN"
-metrics_token = "YOUR_METRICS_TOKEN"
+admin_token = "7e09b05c74475acaaf6f55b6d99b2057f5c975b0e5d0436b98719772107b4529"
+metrics_token = "5c558f268c087136bac5b4227b0d9ed5d6437f9d1b25437bf877f21fb59460d5"
