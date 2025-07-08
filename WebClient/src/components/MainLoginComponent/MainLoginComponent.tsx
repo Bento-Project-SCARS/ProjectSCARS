@@ -66,7 +66,6 @@ export function MainLoginComponent(): React.ReactElement {
     const [mfaNonce, setMFANonce] = useState<string | null>(null);
     const [oauthSupport, setOAuthSupport] = useState<{ google: boolean; microsoft: boolean; facebook: boolean }>({
         google: false,
-        // TODO: OAuth adapters below are not implemented yet.
         microsoft: false,
         facebook: false,
     });
@@ -428,7 +427,7 @@ export function MainLoginComponent(): React.ReactElement {
                                 }
                             />
                         </Button>
-                        {/* TODO: Not implemented yet */}
+                        {/* Microsoft OAuth Button */}
                         <Button
                             variant="light"
                             disabled={!oauthSupport.microsoft}
@@ -441,6 +440,21 @@ export function MainLoginComponent(): React.ReactElement {
                             dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
                             onClick={async (e: React.MouseEvent) => {
                                 e.preventDefault();
+                                try {
+                                    const response = await fetch("http://localhost:8081/v1/auth/oauth/microsoft/login");
+                                    const data = await response.json();
+                                    if (data.url) {
+                                        window.location.href = data.url;
+                                    }
+                                } catch (error) {
+                                    console.error("Error starting Microsoft OAuth:", error);
+                                    notifications.show({
+                                        title: "Login failed",
+                                        message: "Failed to start Microsoft login process.",
+                                        color: "red",
+                                        icon: <IconX />,
+                                    });
+                                }
                             }}
                         >
                             <Image
@@ -457,7 +471,7 @@ export function MainLoginComponent(): React.ReactElement {
                                 }
                             />
                         </Button>
-                        {/* TODO: Not implemented yet */}
+                        {/* Facebook OAuth Button */}
                         <Button
                             variant="light"
                             disabled={!oauthSupport.facebook}
@@ -470,6 +484,21 @@ export function MainLoginComponent(): React.ReactElement {
                             dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
                             onClick={async (e: React.MouseEvent) => {
                                 e.preventDefault();
+                                try {
+                                    const response = await fetch("http://localhost:8081/v1/auth/oauth/facebook/login");
+                                    const data = await response.json();
+                                    if (data.url) {
+                                        window.location.href = data.url;
+                                    }
+                                } catch (error) {
+                                    console.error("Error starting Facebook OAuth:", error);
+                                    notifications.show({
+                                        title: "Login failed",
+                                        message: "Failed to start Facebook login process.",
+                                        color: "red",
+                                        icon: <IconX />,
+                                    });
+                                }
                             }}
                         >
                             <Image

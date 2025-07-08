@@ -34,7 +34,11 @@ from centralserver.internals.models.user import User, UserCreate, UserInvite, Us
 from centralserver.internals.user_handler import create_user, validate_password
 from centralserver.routers.auth_routes.email import router as email_router
 from centralserver.routers.auth_routes.multifactor import router as multifactor_router
-from centralserver.routers.auth_routes.oauth import google_oauth_adapter
+from centralserver.routers.auth_routes.oauth import (
+    google_oauth_adapter,
+    facebook_oauth_adapter,
+    microsoft_oauth_adapter,
+)
 from centralserver.routers.auth_routes.oauth import router as oauth_router
 
 logger = LoggerFactory().get_logger(__name__)
@@ -391,9 +395,6 @@ async def get_oauth_config() -> dict[str, bool]:
 
     return {
         "google": google_oauth_adapter is not None,
-        # TODO: The OAuth adapters below are not yet implemented. See adapters/oauth.py
-        # "microsoft": app_config.authentication.oauth.microsoft is not None,
-        # "facebook": app_config.authentication.oauth.facebook is not None,
-        "microsoft": False,
-        "facebook": False,
+        "microsoft": microsoft_oauth_adapter is not None,
+        "facebook": facebook_oauth_adapter is not None,
     }
