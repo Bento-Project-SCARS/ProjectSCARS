@@ -1,4 +1,5 @@
 import { JwtToken } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { LocalStorage } from "@/lib/info";
 import { performLogout } from "@/lib/utils/logout";
 
@@ -7,10 +8,10 @@ import { performLogout } from "@/lib/utils/logout";
  * @returns {string} The access token header in the format "Bearer <token>".
  */
 export function GetAccessTokenHeader(): string {
-    console.debug("Getting access token header");
+    customLogger.debug("Getting access token header");
     const storedToken = localStorage.getItem(LocalStorage.accessToken);
     if (storedToken === null) {
-        console.error("Access token is not set");
+        customLogger.error("Access token is not set");
         throw new Error("Access token is not set");
     }
 
@@ -30,7 +31,7 @@ export function IsRememberMeEnabled(): boolean {
         const token: JwtToken = JSON.parse(storedToken);
         return !!token.refresh_token;
     } catch (error) {
-        console.error("Error checking remember me status:", error);
+        customLogger.error("Error checking remember me status:", error);
         return false;
     }
 }
@@ -47,7 +48,7 @@ export function GetRefreshToken(): string | null {
         const token: JwtToken = JSON.parse(storedToken);
         return token.refresh_token || null;
     } catch (error) {
-        console.error("Error getting refresh token:", error);
+        customLogger.error("Error getting refresh token:", error);
         return null;
     }
 }
@@ -79,7 +80,7 @@ export function IsAccessTokenMissing(): boolean {
         // We can only check if the token exists in storage
         return false; // Token exists and appears valid, let server validate
     } catch (error) {
-        console.error("Error checking token existence:", error);
+        customLogger.error("Error checking token existence:", error);
         return true; // Assume missing if we can't parse the stored token
     }
 }
@@ -93,7 +94,7 @@ export function IsAccessTokenMissing(): boolean {
 export function CheckAndHandleMissingTokens(logoutCallback: () => void): void {
     const storedToken = localStorage.getItem(LocalStorage.accessToken);
     if (!storedToken) {
-        console.info("No access token found in storage. Logging out.");
+        customLogger.info("No access token found in storage. Logging out.");
         logoutCallback();
         return;
     }
@@ -101,16 +102,16 @@ export function CheckAndHandleMissingTokens(logoutCallback: () => void): void {
     try {
         const token: JwtToken = JSON.parse(storedToken);
         if (!token.access_token) {
-            console.info("Invalid access token format. Logging out.");
+            customLogger.info("Invalid access token format. Logging out.");
             logoutCallback();
             return;
         }
 
         // Token exists and appears valid - actual expiration will be handled
         // by the customClient's 401 error handling and automatic refresh logic
-        console.debug("Access token exists in storage. Server will validate expiration.");
+        customLogger.debug("Access token exists in storage. Server will validate expiration.");
     } catch (error) {
-        console.error("Error parsing stored token:", error);
+        customLogger.error("Error parsing stored token:", error);
         logoutCallback();
     }
 }

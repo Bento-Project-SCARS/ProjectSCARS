@@ -18,6 +18,7 @@ from centralserver.internals.models.reports.monthly_report import (
 )
 from centralserver.internals.models.reports.status_change_request import (
     StatusChangeRequest,
+    RoleBasedTransitions,
 )
 from centralserver.internals.models.reports.report_status_manager import (
     ReportStatusManager,
@@ -47,7 +48,7 @@ async def get_all_school_monthly_reports(
         offset: The offset for pagination.
 
     Returns:
-        A list of monthly reports for the specified school.
+        A list of monthly reports for the specified school that the user can view based on their role.
     """
 
     user = await get_user(token.id, session, by_id=True)
@@ -66,18 +67,35 @@ async def get_all_school_monthly_reports(
             detail="You do not have permission to view monthly reports.",
         )
 
+    # Get the statuses that this user role can view
+    viewable_statuses = ReportStatusManager.get_viewable_reports_filter(user)
+
     logger.debug(
-        "user `%s` requesting monthly reports of school %s.",
+        "user `%s` (role %s) requesting monthly reports of school %s. Viewable statuses: %s",
         token.id,
+        user.roleId,
         school_id,
+        [status.value for status in viewable_statuses],
     )
-    monthly_reports = session.exec(
+
+    # Get all reports first, then filter by viewable statuses
+    all_reports = session.exec(
         select(MonthlyReport)
         .where(MonthlyReport.submittedBySchool == school_id)
         .offset(offset)
         .limit(limit)
     ).all()
-    return list(monthly_reports)
+
+    # Filter reports by viewable statuses
+    if viewable_statuses:
+        monthly_reports = [
+            report for report in all_reports if report.reportStatus in viewable_statuses
+        ]
+    else:
+        # If user has no viewable statuses, return empty list
+        monthly_reports = []
+
+    return monthly_reports
 
 
 @router.get("/{school_id}/{year}/{month}")
@@ -98,7 +116,8 @@ async def get_school_monthly_report(
         month: The month of the report.
 
     Returns:
-        The monthly report for the specified school, year, and month, or None if not found.
+        The monthly report for the specified school, year, and month, or None if not found
+        or if the user doesn't have permission to view it based on their role.
     """
 
     user = await get_user(token.id, session, by_id=True)
@@ -132,6 +151,14 @@ async def get_school_monthly_report(
                 MonthlyReport.submittedBySchool == school_id,
             )
         ).one()
+
+        # Check if user can view this specific report based on its status
+        if not ReportStatusManager.check_view_permission(user, selected_monthly_report):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"You do not have permission to view reports with '{selected_monthly_report.reportStatus.value}' status.",
+            )
+
         return selected_monthly_report
 
     except NoResultFound as e:
@@ -177,6 +204,15 @@ async def create_school_monthly_report(
             detail="User not found.",
         )
 
+    # Check if user can create reports based on role
+    if not ReportStatusManager.check_create_permission(user):
+        role_description = RoleBasedTransitions.get_role_description(user.roleId)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"As a {role_description}, you do not have permission to create reports. Only Canteen Managers can create reports.",
+        )
+
+    # Additional permission check for school access
     required_permission = (
         "reports:local:write" if user.schoolId == school_id else "reports:global:write"
     )
@@ -185,7 +221,7 @@ async def create_school_monthly_report(
     if not await verify_user_permission(required_permission, session, token):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to create monthly reports.",
+            detail="You do not have permission to create monthly reports for this school.",
         )
 
     logger.debug(
@@ -210,6 +246,23 @@ async def create_school_monthly_report(
             reportStatus=ReportStatus.DRAFT,
             preparedBy=user.id,
             notedBy=noted_by,
+        )
+    else:
+        # Check if the existing report can be edited
+        if selected_monthly_report.reportStatus not in [
+            ReportStatus.DRAFT,
+            ReportStatus.REJECTED,
+        ]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot edit report with status '{selected_monthly_report.reportStatus.value}'. Reports can only be edited when they are in 'draft' or 'rejected' status.",
+            )
+
+        # Update the existing report
+        if noted_by is not None:
+            selected_monthly_report.notedBy = noted_by
+        selected_monthly_report.lastModified = datetime.datetime.now(
+            datetime.timezone.utc
         )
 
     session.add(selected_monthly_report)
@@ -318,7 +371,7 @@ async def change_monthly_report_status(
         year,
         month,
         status_change.new_status.value,
-    )    # Get the report
+    )  # Get the report
     try:
         report = session.exec(
             select(MonthlyReport).where(
@@ -337,7 +390,7 @@ async def change_monthly_report_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Monthly report not found.",
         ) from e
-    
+
     # Use the generic status manager to change the status
     return ReportStatusManager.change_report_status(
         session=session,
@@ -407,5 +460,5 @@ async def get_valid_status_transitions(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Monthly report not found.",
-        ) from e    # Get valid transitions for this user role and current status
+        ) from e  # Get valid transitions for this user role and current status
     return ReportStatusManager.get_valid_transitions_response(user, report)

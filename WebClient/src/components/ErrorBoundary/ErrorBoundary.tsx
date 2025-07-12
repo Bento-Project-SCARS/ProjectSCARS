@@ -1,3 +1,4 @@
+import { customLogger } from "@/lib/api/customLogger";
 import { Button, Stack, Text } from "@mantine/core";
 import React from "react";
 
@@ -20,7 +21,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     }
 
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        console.error("Dashboard Error:", error, errorInfo);
+        customLogger.error("Dashboard Error:", { error, errorInfo });
     }
 
     render() {

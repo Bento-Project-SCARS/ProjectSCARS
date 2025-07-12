@@ -1,6 +1,7 @@
 "use client";
 
 import { School } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { CreateSchool } from "@/lib/api/school";
 import { Button, Modal, Stack, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
@@ -15,11 +16,7 @@ interface CreateSchoolComponentProps {
     onSchoolCreate?: (newSchool: School) => void;
 }
 
-export function CreateSchoolComponent({
-    modalOpen,
-    setModalOpen,
-    onSchoolCreate,
-}: CreateSchoolComponentProps) {
+export function CreateSchoolComponent({ modalOpen, setModalOpen, onSchoolCreate }: CreateSchoolComponentProps) {
     const [buttonLoading, buttonStateHandler] = useDisclosure(false);
 
     const form = useForm({
@@ -57,7 +54,7 @@ export function CreateSchoolComponent({
                 form.reset();
                 if (onSchoolCreate) onSchoolCreate(createdSchool);
             } catch (error) {
-                console.error("Failed to create school:", error);
+                customLogger.error("Failed to create school:", error);
                 if (error instanceof Error && error.message.includes("already exists")) {
                     notifications.show({
                         id: "create-school-exists",
@@ -75,7 +72,7 @@ export function CreateSchoolComponent({
                         icon: <IconSendOff />,
                     });
                 } else {
-                    console.error("Unexpected error:", error);
+                    customLogger.error("Unexpected error:", error);
                     notifications.show({
                         id: "create-school-unexpected-error",
                         title: "Error",
@@ -95,28 +92,11 @@ export function CreateSchoolComponent({
         <Modal opened={modalOpen} onClose={() => setModalOpen(false)} title="Add New School">
             <form onSubmit={form.onSubmit(handleCreateSchool)}>
                 <Stack>
-                    <TextInput
-                        withAsterisk
-                        label="School Name"
-                        {...form.getInputProps("schoolName")}
-                    />
-                    <TextInput
-                        label="Address"
-                        {...form.getInputProps("address")}
-                    />
-                    <TextInput
-                        label="Phone Number"
-                        {...form.getInputProps("phone")}
-                    />
-                    <TextInput
-                        label="Email Address"
-                        type="email"
-                        {...form.getInputProps("email")}
-                    />
-                    <TextInput
-                        label="Website"
-                        {...form.getInputProps("website")}
-                    />
+                    <TextInput withAsterisk label="School Name" {...form.getInputProps("schoolName")} />
+                    <TextInput label="Address" {...form.getInputProps("address")} />
+                    <TextInput label="Phone Number" {...form.getInputProps("phone")} />
+                    <TextInput label="Email Address" type="email" {...form.getInputProps("email")} />
+                    <TextInput label="Website" {...form.getInputProps("website")} />
                     <Button type="submit" loading={buttonLoading} rightSection={<IconUserCheck />}>
                         Create School
                     </Button>

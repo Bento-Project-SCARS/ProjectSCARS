@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Button, Stack, TextInput, Group } from "@mantine/core";
 import { ReceiptAttachmentUploader } from "./ReceiptAttachmentUploader";
+import { customLogger } from "@/lib/api/customLogger";
 
 interface ExampleReportEntry {
     id: number;
@@ -23,7 +24,7 @@ export function EditReportFormExample() {
     const [reportEntry] = useState<ExampleReportEntry>({
         id: 1,
         description: "Office Supplies",
-        amount: 500.00,
+        amount: 500.0,
         receipt_attachment_urns: '["attachment_abc123", "attachment_def456"]', // Existing attachments
     });
 
@@ -36,7 +37,7 @@ export function EditReportFormExample() {
             try {
                 return JSON.parse(reportEntry.receipt_attachment_urns);
             } catch (error) {
-                console.error("Error parsing receipt URNs:", error);
+                customLogger.error("Error parsing receipt URNs:", error);
                 return [];
             }
         }
@@ -49,7 +50,7 @@ export function EditReportFormExample() {
 
         try {
             // Convert attachments to URN list
-            const receiptUrns = attachments.map(attachment => attachment.file_urn);
+            const receiptUrns = attachments.map((attachment) => attachment.file_urn);
             const receiptUrnString = receiptUrns.length > 0 ? JSON.stringify(receiptUrns) : null;
 
             // Prepare updated report entry
@@ -58,15 +59,15 @@ export function EditReportFormExample() {
                 receipt_attachment_urns: receiptUrnString,
             };
 
-            console.log("Submitting report entry:", updatedEntry);
-            console.log("Receipt URNs:", receiptUrns);
+            customLogger.log("Submitting report entry:", updatedEntry);
+            customLogger.log("Receipt URNs:", receiptUrns);
 
             // TODO: Submit to backend API
             // await updateReportEntry(updatedEntry);
 
             alert("Report updated successfully!");
         } catch (error) {
-            console.error("Error updating report:", error);
+            customLogger.error("Error updating report:", error);
             alert("Failed to update report");
         } finally {
             setLoading(false);
@@ -76,17 +77,9 @@ export function EditReportFormExample() {
     return (
         <form onSubmit={handleSubmit}>
             <Stack gap="md">
-                <TextInput
-                    label="Description"
-                    value={reportEntry.description}
-                    disabled
-                />
+                <TextInput label="Description" value={reportEntry.description} disabled />
 
-                <TextInput
-                    label="Amount"
-                    value={`₱${reportEntry.amount.toFixed(2)}`}
-                    disabled
-                />
+                <TextInput label="Amount" value={`₱${reportEntry.amount.toFixed(2)}`} disabled />
 
                 <ReceiptAttachmentUploader
                     attachments={attachments}

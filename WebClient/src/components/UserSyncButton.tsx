@@ -2,6 +2,7 @@ import { Button } from "@mantine/core";
 import { useUserSyncControls } from "@/lib/hooks/useUserSyncControls";
 import { IconRefresh } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
+import { customLogger } from "@/lib/api/customLogger";
 
 interface UserSyncButtonProps {
     variant?: "default" | "filled" | "outline" | "light" | "subtle" | "transparent";
@@ -38,7 +39,7 @@ export function UserSyncButton({
                 });
             }
         } catch (error) {
-            console.error("Error refreshing user data:", error);
+            customLogger.error("Error refreshing user data:", error);
             notifications.show({
                 title: "Error",
                 message: "An error occurred while refreshing profile data",

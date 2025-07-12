@@ -3711,6 +3711,74 @@ export type GetDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSumma
 
 export type GetDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGetResponse = GetDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGetResponses[keyof GetDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGetResponses];
 
+export type GetDailySalesAndPurchasesSummaryFilteredV1ReportsDailySchoolIdYearMonthSummaryFilteredGetData = {
+    body?: never;
+    path: {
+        /**
+         * School Id
+         */
+        school_id: number;
+        /**
+         * Year
+         */
+        year: number;
+        /**
+         * Month
+         */
+        month: number;
+    };
+    query?: {
+        /**
+         * Include Drafts
+         */
+        include_drafts?: boolean;
+        /**
+         * Include Reviews
+         */
+        include_reviews?: boolean;
+        /**
+         * Include Approved
+         */
+        include_approved?: boolean;
+        /**
+         * Include Rejected
+         */
+        include_rejected?: boolean;
+        /**
+         * Include Received
+         */
+        include_received?: boolean;
+        /**
+         * Include Archived
+         */
+        include_archived?: boolean;
+    };
+    url: '/v1/reports/daily/{school_id}/{year}/{month}/summary/filtered';
+};
+
+export type GetDailySalesAndPurchasesSummaryFilteredV1ReportsDailySchoolIdYearMonthSummaryFilteredGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetDailySalesAndPurchasesSummaryFilteredV1ReportsDailySchoolIdYearMonthSummaryFilteredGetError = GetDailySalesAndPurchasesSummaryFilteredV1ReportsDailySchoolIdYearMonthSummaryFilteredGetErrors[keyof GetDailySalesAndPurchasesSummaryFilteredV1ReportsDailySchoolIdYearMonthSummaryFilteredGetErrors];
+
+export type GetDailySalesAndPurchasesSummaryFilteredV1ReportsDailySchoolIdYearMonthSummaryFilteredGetResponses = {
+    /**
+     * Response Get Daily Sales And Purchases Summary Filtered V1 Reports Daily  School Id   Year   Month  Summary Filtered Get
+     * Successful Response
+     */
+    200: {
+        [key: string]: number | number | {
+            [key: string]: number | number;
+        } | string | null;
+    };
+};
+
+export type GetDailySalesAndPurchasesSummaryFilteredV1ReportsDailySchoolIdYearMonthSummaryFilteredGetResponse = GetDailySalesAndPurchasesSummaryFilteredV1ReportsDailySchoolIdYearMonthSummaryFilteredGetResponses[keyof GetDailySalesAndPurchasesSummaryFilteredV1ReportsDailySchoolIdYearMonthSummaryFilteredGetResponses];
+
 export type ChangeDailyReportStatusV1ReportsDailySchoolIdYearMonthStatusPatchData = {
     body: StatusChangeRequest;
     path: {

@@ -1,6 +1,7 @@
 "use client";
 
 import { Role, School, UserPublic, inviteUserV1AuthInvitePost } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import { Button, Modal, Select, Stack, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
@@ -154,7 +155,9 @@ export function InviteUserComponent({
                 usernameManuallyEdited.current = false; // Reset manual edit flag
                 if (onUserInvite) onUserInvite(result.data);
             } catch (err) {
-                console.error(err instanceof Error ? `Failed to invite user: ${err.message}` : "Failed to invite user");
+                customLogger.error(
+                    err instanceof Error ? `Failed to invite user: ${err.message}` : "Failed to invite user"
+                );
                 notifications.show({
                     id: "invite-user-error",
                     title: "Error",

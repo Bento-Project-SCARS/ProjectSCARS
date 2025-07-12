@@ -1,3 +1,4 @@
+import { customLogger } from "@/lib/api/customLogger";
 import { LocalStorage } from "@/lib/info";
 
 /**
@@ -7,7 +8,7 @@ import { LocalStorage } from "@/lib/info";
  * @param redirect - Whether to redirect to login page (default: true)
  */
 export function performLogout(redirect: boolean = true): void {
-    console.debug("🚪 Performing complete logout...");
+    customLogger.debug("🚪 Performing complete logout...");
 
     // Clear all authentication and user data from localStorage
     localStorage.removeItem(LocalStorage.accessToken);
@@ -19,7 +20,7 @@ export function performLogout(redirect: boolean = true): void {
 
     // Redirect to login page if requested and we're in a browser environment
     if (redirect && typeof window !== "undefined") {
-        console.debug("🔄 Redirecting to login page...");
+        customLogger.debug("🔄 Redirecting to login page...");
         window.location.href = "/login";
     }
 }

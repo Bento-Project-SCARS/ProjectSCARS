@@ -11,6 +11,7 @@ import {
     patchSchoolLogoV1SchoolsLogoPatch,
     updateSchoolEndpointV1SchoolsPatch,
 } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 
 export async function GetAllSchools(offset: number, limit: number): Promise<School[]> {
@@ -21,7 +22,7 @@ export async function GetAllSchools(offset: number, limit: number): Promise<Scho
 
     if (result.error) {
         const errorMessage = `Failed to get all schools: ${result.response.status} ${result.response.statusText}`;
-        console.error(errorMessage);
+        customLogger.error(errorMessage);
         throw new Error(errorMessage);
     }
 
@@ -36,13 +37,13 @@ export async function GetSchoolLogo(fn: string): Promise<Blob> {
 
     if (result.error) {
         const errorMessage = `Failed to get school logo: ${result.response.status} ${result.response.statusText}`;
-        console.error(errorMessage);
+        customLogger.error(errorMessage);
         throw new Error(errorMessage);
     }
 
     // Type assertion needed as the generated type is not specific about Blob
     const logoBlob = result.data as unknown as Blob;
-    console.debug("School logo response blob size:", logoBlob.size);
+    customLogger.debug("School logo response blob size:", logoBlob.size);
     return logoBlob;
 }
 
@@ -54,7 +55,7 @@ export async function UpdateSchoolInfo(school: SchoolUpdate): Promise<School> {
 
     if (result.error) {
         const errorMessage = `Failed to update school info: ${result.response.status} ${result.response.statusText}`;
-        console.error(errorMessage);
+        customLogger.error(errorMessage);
         throw new Error(errorMessage);
     }
 
@@ -73,7 +74,7 @@ export async function UploadSchoolLogo(schoolId: number, file: File): Promise<Sc
 
     if (result.error) {
         const errorMessage = `Failed to upload school logo: ${result.response.status} ${result.response.statusText}`;
-        console.error(errorMessage);
+        customLogger.error(errorMessage);
         throw new Error(errorMessage);
     }
 
@@ -88,7 +89,7 @@ export async function RemoveSchoolLogo(schoolId: number): Promise<School> {
 
     if (result.error) {
         const errorMessage = `Failed to remove school logo: ${result.response.status} ${result.response.statusText}`;
-        console.error(errorMessage);
+        customLogger.error(errorMessage);
         throw new Error(errorMessage);
     }
 
@@ -102,7 +103,7 @@ export async function GetSchoolQuantity(): Promise<number> {
 
     if (result.error) {
         const errorMessage = `Failed to get school quantity: ${result.response.status} ${result.response.statusText}`;
-        console.error(errorMessage);
+        customLogger.error(errorMessage);
         throw new Error(errorMessage);
     }
 
@@ -117,7 +118,7 @@ export async function CreateSchool(school: SchoolCreate): Promise<School> {
 
     if (result.error) {
         const errorMessage = `Failed to create school: ${result.response.status} ${result.response.statusText}`;
-        console.error(errorMessage);
+        customLogger.error(errorMessage);
         throw new Error(errorMessage);
     }
 
@@ -132,7 +133,7 @@ export async function GetSchoolInfo(schoolId: number): Promise<School> {
 
     if (result.error) {
         const errorMessage = `Failed to get school info: ${result.response.status} ${result.response.statusText}`;
-        console.error(errorMessage);
+        customLogger.error(errorMessage);
         throw new Error(errorMessage);
     }
 

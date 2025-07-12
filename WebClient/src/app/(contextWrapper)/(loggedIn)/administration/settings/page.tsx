@@ -23,6 +23,7 @@ import { IconBrandGithub, IconInfoCircle, IconLockAccess, IconTool } from "@tabl
 import { useEffect, useState } from "react";
 import { GetServerConfig, UpdateServerConfig, ServerConfig } from "@/lib/api/config";
 import { Program } from "@/lib/info";
+import { customLogger } from "@/lib/api/customLogger";
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
@@ -90,7 +91,7 @@ export default function SettingsPage() {
                 form.setValues(config);
                 setHasPermission(true);
             } catch (error) {
-                console.error("Failed to fetch configuration:", error);
+                customLogger.error("Failed to fetch configuration:", error);
                 notifications.show({
                     title: "Error",
                     message: "Failed to load server configuration. You may not have permission to access this page.",
@@ -116,7 +117,7 @@ export default function SettingsPage() {
                 color: "green",
             });
         } catch (error) {
-            console.error("Failed to update configuration:", error);
+            customLogger.error("Failed to update configuration:", error);
             notifications.show({
                 title: "Error",
                 message: "Failed to update server configuration.",

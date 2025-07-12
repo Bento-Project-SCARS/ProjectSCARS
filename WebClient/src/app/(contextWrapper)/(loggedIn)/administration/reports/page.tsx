@@ -1,123 +1,108 @@
 "use client";
 
-import { useState } from "react";
-
+import { MonthlyReportDetailsModal } from "@/components/MonthlyReportDetailsModal";
+import { MonthlyReportEditModal } from "@/components/MonthlyReportEditModal";
+import { ReportStatusManager } from "@/components/ReportStatusManager";
+import { GetAllSchools, GetSchoolInfo } from "@/lib/api/school";
+import { useUser } from "@/lib/providers/user";
+import {
+    MonthlyReport,
+    School,
+    getAllSchoolMonthlyReportsV1ReportsMonthlySchoolIdGet,
+    deleteSchoolMonthlyReportV1ReportsMonthlySchoolIdYearMonthDelete,
+} from "@/lib/api/csclient";
+import type { ReportStatus } from "@/lib/api/csclient/types.gen";
 import {
     ActionIcon,
-    Badge,
+    Button,
     Checkbox,
     Flex,
     Group,
     Menu,
+    Modal,
     Pagination,
     Paper,
     Select,
     Stack,
     Table,
-    Tabs,
     Text,
     TextInput,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { IconDots, IconDownload, IconEye, IconFilter, IconPencil, IconSearch, IconTrash } from "@tabler/icons-react";
-
-// Sample Report Submission Data
-const reportSubmissions = [
-    {
-        id: 1,
-        name: "Daily Sales Report",
-        type: "Daily Sales",
-        category: "Sales",
-        lastModified: "2025-06-05T16:30:00Z",
-        status: "Draft",
-        period: "2025-06-05",
-    },
-    {
-        id: 2,
-        name: "May Monthly Sales Summary",
-        type: "Monthly Sales",
-        category: "Sales",
-        lastModified: "2025-05-31T14:20:00Z",
-        status: "Submitted",
-        period: "2025-05",
-    },
-    {
-        id: 3,
-        name: "Operating Expenses Liquidation - May",
-        type: "Operating Expenses",
-        category: "Expenses",
-        lastModified: "2025-05-30T11:15:00Z",
-        status: "Under Review",
-        period: "2025-05",
-    },
-    {
-        id: 4,
-        name: "HE Fund Report - May",
-        type: "HE Fund",
-        category: "Expenses",
-        lastModified: "2025-05-29T10:45:00Z",
-        status: "Rejected",
-        period: "2025-05",
-    },
-    {
-        id: 5,
-        name: "Supplementary Feeding Fund - April",
-        type: "Supplementary Feeding",
-        category: "Expenses",
-        lastModified: "2025-04-30T13:00:00Z",
-        status: "Approved",
-        period: "2025-04",
-    },
-    {
-        id: 6,
-        name: "Staff Payroll - May 2025",
-        type: "Payroll",
-        category: "Payroll",
-        lastModified: "2025-05-25T09:30:00Z",
-        status: "Approved",
-        period: "2025-05",
-    },
-];
+import dayjs from "dayjs";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { customLogger } from "@/lib/api/customLogger";
 
 export default function ReportsPage() {
-    console.debug("Rendering ReportsPage");
+    customLogger.debug("Rendering Administration ReportsPage");
 
-    // const router = useRouter();
-
+    const userCtx = useUser();
     const [search, setSearch] = useState("");
-    const [selectedReports, setSelectedReports] = useState<number[]>([]);
+    const [selectedReports, setSelectedReports] = useState<string[]>([]);
     const [statusFilter, setStatusFilter] = useState("all");
-    const [categoryFilter, setCategoryFilter] = useState("all");
-    const [activeTab, setActiveTab] = useState("all");
-    // const [liquidationModalOpened, setLiquidationModalOpened] = useState(false);
+    const [showArchived, setShowArchived] = useState(false);
+    const [detailsModalOpened, setDetailsModalOpened] = useState(false);
+    const [editModalOpened, setEditModalOpened] = useState(false);
+    const [deleteConfirmModalOpened, setDeleteConfirmModalOpened] = useState(false);
+    const [archiveConfirmModalOpened, setArchiveConfirmModalOpened] = useState(false);
+    const [reportToDelete, setReportToDelete] = useState<string | null>(null);
+    const [reportToArchive, setReportToArchive] = useState<MonthlyReport | null>(null);
+    const [selectedReport, setSelectedReport] = useState<MonthlyReport | null>(null);
+    const [allReports, setAllReports] = useState<MonthlyReport[]>([]);
+    const [parsedSubmittedBySchools, setParsedSubmittedBySchools] = useState<Record<number, School>>({});
 
-    const filteredReports = reportSubmissions.filter((report) => {
-        const matchesSearch = report.name.toLowerCase().includes(search.toLowerCase());
-        const matchesStatus =
-            statusFilter === "all" || report.status.toLowerCase().replace(/\s+/g, "-") === statusFilter;
-        const matchesCategory = categoryFilter === "all" || report.category.toLowerCase() === categoryFilter;
-        const matchesTab = activeTab === "all" || report.category.toLowerCase() === activeTab;
+    // Fetch all monthly reports from all schools
+    const fetchAllMonthlyReports = async () => {
+        try {
+            // First get all schools
+            const schools = await GetAllSchools(0, 10000);
+            const allReports: MonthlyReport[] = [];
 
-        return matchesSearch && matchesStatus && matchesCategory && matchesTab;
-    });
+            // Fetch reports from each school
+            for (const school of schools) {
+                try {
+                    const { data: schoolReports } = await getAllSchoolMonthlyReportsV1ReportsMonthlySchoolIdGet({
+                        path: { school_id: school.id! },
+                        query: { offset: 0, limit: 1000 }, // Get all reports for each school
+                    });
+                    if (schoolReports) {
+                        allReports.push(...schoolReports);
+                    }
+                } catch (error) {
+                    customLogger.error(`Failed to fetch reports for school ${school.id}:`, error);
+                    // Continue with other schools even if one fails
+                }
+            }
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case "Approved":
-                return "green";
-            case "Submitted":
-                return "blue";
-            case "Under Review":
-                return "yellow";
-            case "Pending Approval":
-                return "orange";
-            case "Rejected":
-                return "red";
-            case "Draft":
-                return "gray";
-            default:
-                return "gray";
+            setAllReports(allReports);
+            customLogger.debug("Fetched all reports:", allReports);
+        } catch (error) {
+            customLogger.error("Failed to fetch all monthly reports:", error);
+            notifications.show({
+                title: "Error",
+                message: "Failed to fetch monthly reports. Please try again later.",
+                color: "red",
+            });
         }
     };
+
+    // Fetch reports on component mount
+    useEffect(() => {
+        fetchAllMonthlyReports();
+    }, []);
+
+    const filteredReports = allReports.filter((report) => {
+        const matchesSearch = report.name?.toLowerCase().includes(search.toLowerCase());
+        const matchesStatus =
+            statusFilter === "all" ||
+            (report.reportStatus && report.reportStatus.toLowerCase().replace(/\s+/g, "-") === statusFilter);
+
+        // Filter out archived reports unless explicitly showing them
+        const matchesArchived = showArchived || report.reportStatus !== "archived";
+
+        return matchesSearch && matchesStatus && matchesArchived;
+    });
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
@@ -127,107 +112,290 @@ export default function ReportsPage() {
         }
     };
 
-    const handleSelectReport = (id: number, checked: boolean) => {
+    const handleSelectReport = useCallback((id: string, checked: boolean) => {
         if (checked) {
-            setSelectedReports([...selectedReports, id]);
+            setSelectedReports((prev) => [...prev, id]);
         } else {
-            setSelectedReports(selectedReports.filter((reportId) => reportId !== id));
+            setSelectedReports((prev) => prev.filter((reportId) => reportId !== id));
         }
-    };
+    }, []);
 
-    // const handleNavigateToSales = () => {
-    //     router.push("/reports/sales");
-    // };
+    const handleOpenReportDetails = useCallback((report: MonthlyReport) => {
+        setSelectedReport(report);
+        setDetailsModalOpened(true);
+    }, []);
 
-    // const handleCreateLiquidationReport = (category: string, path: string) => {
-    //     console.log(`Selected liquidation category: ${category}, navigating to: ${path}`);
-    // };
+    const handleCloseDetailsModal = useCallback(() => {
+        setDetailsModalOpened(false);
+        setSelectedReport(null);
+    }, []);
 
-    // const handleNavigateToPayroll = () => {
-    //     router.push("/reports/payroll");
-    // };
+    const handleOpenEditModal = useCallback((report: MonthlyReport) => {
+        setSelectedReport(report);
+        setEditModalOpened(true);
+    }, []);
 
-    // type QuickActionCardProps = {
-    //     title: string;
-    //     description: string;
-    //     icon: React.ElementType;
-    //     color: string;
-    //     onClick: () => void;
-    // };
+    const handleCloseEditModal = useCallback(() => {
+        setEditModalOpened(false);
+        setSelectedReport(null);
+    }, []);
 
-    // const QuickActionCard = ({ title, description, icon: Icon, color, onClick }: QuickActionCardProps) => (
-    //     <Card shadow="sm" padding="lg" radius="md" withBorder style={{ cursor: "pointer" }} onClick={onClick}>
-    //         <Group>
-    //             <ActionIcon size="xl" variant="light" color={color}>
-    //                 <Icon size={24} />
-    //             </ActionIcon>
-    //             <div>
-    //                 <Text fw={500}>{title}</Text>
-    //                 <Text size="sm" c="dimmed">
-    //                     {description}
-    //                 </Text>
-    //             </div>
-    //         </Group>
-    //     </Card>
-    // );
+    const handleReportUpdate = useCallback((updatedReport: MonthlyReport) => {
+        // Update the local state with the updated report
+        setAllReports((prev) => prev.map((report) => (report.id === updatedReport.id ? updatedReport : report)));
+    }, []);
 
-    const rows = filteredReports.map((report) => (
-        <Table.Tr key={report.id}>
-            <Table.Td>
-                <Checkbox
-                    checked={selectedReports.includes(report.id)}
-                    onChange={(e) => handleSelectReport(report.id, e.currentTarget.checked)}
-                />
-            </Table.Td>
-            <Table.Td>
-                <div>
-                    <Text fw={500} size="sm">
-                        {report.name}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                        {report.type}
-                    </Text>
-                </div>
-            </Table.Td>
-            <Table.Td>
-                <Badge color={getStatusColor(report.status)} variant="filled" size="sm">
-                    {report.status}
-                </Badge>
-            </Table.Td>
-            <Table.Td>
-                <div>
-                    <Text size="sm">{report.period}</Text>
-                </div>
-            </Table.Td>
-            <Table.Td>
-                <Text size="sm" c="dimmed">
-                    {new Date(report.lastModified).toLocaleDateString("en-US", {
-                        month: "2-digit",
-                        day: "2-digit",
-                        year: "numeric",
-                    })}
-                </Text>
-            </Table.Td>
-            <Table.Td>
-                <Menu withinPortal position="bottom-end" shadow="sm">
-                    <Menu.Target>
-                        <ActionIcon variant="subtle" color="gray">
-                            <IconDots size={16} />
-                        </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        <Menu.Item leftSection={<IconEye size={14} />}>View</Menu.Item>
-                        <Menu.Item leftSection={<IconPencil size={14} />}>Edit</Menu.Item>
-                        <Menu.Item leftSection={<IconDownload size={14} />}>Download</Menu.Item>
-                        <Menu.Divider />
-                        <Menu.Item color="red" leftSection={<IconTrash size={14} />}>
-                            Delete
-                        </Menu.Item>
-                    </Menu.Dropdown>
-                </Menu>
-            </Table.Td>
-        </Table.Tr>
-    ));
+    const handleDeleteReport = useCallback(async (reportId: string) => {
+        setReportToDelete(reportId);
+        setDeleteConfirmModalOpened(true);
+    }, []);
+
+    const confirmDeleteReport = useCallback(async () => {
+        if (!reportToDelete) return;
+
+        try {
+            // Find the report to get the school ID
+            const reportToDeleteObj = allReports.find((r) => r.id === reportToDelete);
+            if (!reportToDeleteObj) {
+                notifications.show({
+                    title: "Error",
+                    message: "Report not found.",
+                    color: "red",
+                });
+                return;
+            }
+
+            const year = parseInt(dayjs(reportToDelete).format("YYYY"));
+            const month = parseInt(dayjs(reportToDelete).format("MM"));
+
+            await deleteSchoolMonthlyReportV1ReportsMonthlySchoolIdYearMonthDelete({
+                path: {
+                    school_id: reportToDeleteObj.submittedBySchool,
+                    year,
+                    month,
+                },
+            });
+
+            // Remove from local state
+            setAllReports((prev) => prev.filter((r) => r.id !== reportToDelete));
+
+            notifications.show({
+                title: "Success",
+                message: "Monthly report and all related reports have been deleted successfully.",
+                color: "green",
+            });
+
+            // Close modal and reset state
+            setDeleteConfirmModalOpened(false);
+            setReportToDelete(null);
+        } catch (error) {
+            customLogger.error("Failed to delete report:", error);
+            notifications.show({
+                title: "Error",
+                message: "Failed to delete the report. Please try again.",
+                color: "red",
+            });
+        }
+    }, [reportToDelete, allReports]);
+
+    const cancelDeleteReport = useCallback(() => {
+        setDeleteConfirmModalOpened(false);
+        setReportToDelete(null);
+    }, []);
+
+    const handleReportStatusChange = useCallback(
+        (reportId: string, newStatus: ReportStatus) => {
+            // If trying to archive, show confirmation first
+            if (newStatus === "archived") {
+                const reportToArchive = allReports.find((r) => r.id === reportId);
+                if (reportToArchive) {
+                    setReportToArchive(reportToArchive);
+                    setArchiveConfirmModalOpened(true);
+                    return;
+                }
+            }
+
+            // Update the local state to reflect the status change for non-archive statuses
+            setAllReports((prev) =>
+                prev.map((report) => (report.id === reportId ? { ...report, reportStatus: newStatus } : report))
+            );
+        },
+        [allReports]
+    );
+
+    const confirmArchiveReport = useCallback(async () => {
+        if (!reportToArchive) return;
+
+        // Update the local state to reflect the archive status change
+        setAllReports((prev) =>
+            prev.map((report) => (report.id === reportToArchive.id ? { ...report, reportStatus: "archived" } : report))
+        );
+
+        // Close modal and reset state
+        setArchiveConfirmModalOpened(false);
+        setReportToArchive(null);
+    }, [reportToArchive]);
+
+    const cancelArchiveReport = useCallback(() => {
+        setArchiveConfirmModalOpened(false);
+        setReportToArchive(null);
+    }, []);
+
+    const parseSubmittedBySchool = useCallback(async (submittedBySchool: number) => {
+        try {
+            const school = await GetSchoolInfo(submittedBySchool);
+            setParsedSubmittedBySchools((prev) => ({
+                ...prev,
+                [submittedBySchool]: school,
+            }));
+            return school;
+        } catch (error) {
+            customLogger.error("Failed to fetch school info:", error);
+            notifications.show({
+                title: "Error",
+                message: "Failed to fetch school information for report submission.",
+                color: "red",
+            });
+        }
+    }, []);
+
+    // Load school data for reports that don't have it cached
+    useEffect(() => {
+        filteredReports.forEach((report) => {
+            if (!parsedSubmittedBySchools[report.submittedBySchool]) {
+                parseSubmittedBySchool(report.submittedBySchool);
+            }
+        });
+    }, [filteredReports, parseSubmittedBySchool, parsedSubmittedBySchools]);
+
+    // Check if user can create reports based on role
+    const canCreateReports = useMemo(() => {
+        const userRoleId = userCtx.userInfo?.roleId;
+        // Only Canteen Managers (roleId: 5) can create reports
+        // Principals (4), Administrators (3), and Superintendents (2) cannot create reports
+        return userRoleId === 5;
+    }, [userCtx.userInfo?.roleId]);
+
+    const rows = useMemo(
+        () =>
+            filteredReports.map((report) => {
+                return (
+                    <Table.Tr key={`${report.id}`}>
+                        <Table.Td>
+                            <Checkbox
+                                checked={selectedReports.includes(report.id)}
+                                onChange={(e) => handleSelectReport(report.id, e.currentTarget.checked)}
+                            />
+                        </Table.Td>
+                        <Table.Td>
+                            <div style={{ cursor: "pointer" }} onClick={() => handleOpenReportDetails(report)}>
+                                <Text fw={500} size="sm">
+                                    {report.name}
+                                </Text>
+                                <Text size="xs" c="dimmed">
+                                    {parsedSubmittedBySchools[report.submittedBySchool]
+                                        ? parsedSubmittedBySchools[report.submittedBySchool].name
+                                        : "Loading school..."}
+                                </Text>
+                            </div>
+                        </Table.Td>
+                        <Table.Td>
+                            <Group gap="xs">
+                                <Text
+                                    size="sm"
+                                    c={
+                                        report.reportStatus === "received"
+                                            ? "green"
+                                            : report.reportStatus === "review"
+                                            ? "orange"
+                                            : report.reportStatus === "rejected"
+                                            ? "red"
+                                            : "dimmed"
+                                    }
+                                    fw={500}
+                                    tt="capitalize"
+                                >
+                                    {report.reportStatus || "Draft"}
+                                </Text>
+                                <ReportStatusManager
+                                    currentStatus={report.reportStatus || "draft"}
+                                    reportType="monthly"
+                                    schoolId={report.submittedBySchool}
+                                    year={parseInt(dayjs(report.id).format("YYYY"))}
+                                    month={parseInt(dayjs(report.id).format("MM"))}
+                                    onStatusChanged={(newStatus) => handleReportStatusChange(report.id, newStatus)}
+                                    disabled={false}
+                                />
+                            </Group>
+                        </Table.Td>
+                        <Table.Td>
+                            <div>
+                                <Text size="sm">{dayjs(report.id).format("MMMM YYYY")}</Text>
+                            </div>
+                        </Table.Td>
+                        <Table.Td>
+                            <Text size="sm" c="dimmed">
+                                {report.lastModified
+                                    ? new Date(report.lastModified).toLocaleDateString("en-US", {
+                                          month: "2-digit",
+                                          day: "2-digit",
+                                          year: "numeric",
+                                      })
+                                    : "N/A"}
+                            </Text>
+                        </Table.Td>
+                        <Table.Td>
+                            <Menu withinPortal position="bottom-end" shadow="sm">
+                                <Menu.Target>
+                                    <ActionIcon variant="subtle" color="gray">
+                                        <IconDots size={16} />
+                                    </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    <Menu.Item
+                                        leftSection={<IconEye size={14} />}
+                                        onClick={() => handleOpenReportDetails(report)}
+                                    >
+                                        View
+                                    </Menu.Item>
+                                    {canCreateReports &&
+                                        (report.reportStatus === "draft" || report.reportStatus === "rejected") && (
+                                            <>
+                                                <Menu.Item
+                                                    leftSection={<IconPencil size={14} />}
+                                                    onClick={() => handleOpenEditModal(report)}
+                                                >
+                                                    Edit
+                                                </Menu.Item>
+                                                <Menu.Divider />
+                                                <Menu.Item
+                                                    color="red"
+                                                    leftSection={<IconTrash size={14} />}
+                                                    onClick={() => handleDeleteReport(report.id)}
+                                                >
+                                                    Delete
+                                                </Menu.Item>
+                                            </>
+                                        )}
+                                    <Menu.Item leftSection={<IconDownload size={14} />}>Download</Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        </Table.Td>
+                    </Table.Tr>
+                );
+            }),
+        [
+            filteredReports,
+            selectedReports,
+            parsedSubmittedBySchools,
+            handleSelectReport,
+            handleDeleteReport,
+            handleOpenReportDetails,
+            handleOpenEditModal,
+            handleReportStatusChange,
+            canCreateReports,
+        ]
+    );
 
     return (
         <Stack gap="lg">
@@ -249,38 +417,22 @@ export default function ReportsPage() {
                         data={[
                             { value: "all", label: "All Status" },
                             { value: "draft", label: "Draft" },
-                            { value: "submitted", label: "Submitted" },
-                            { value: "under-review", label: "Under Review" },
-                            { value: "pending-approval", label: "Pending Approval" },
+                            { value: "review", label: "Under Review" },
                             { value: "approved", label: "Approved" },
                             { value: "rejected", label: "Rejected" },
+                            { value: "received", label: "Received" },
+                            { value: "archived", label: "Archived" },
                         ]}
                         w={180}
                     />
-                    <Select
-                        placeholder="Filter by category"
-                        value={categoryFilter}
-                        onChange={(value) => setCategoryFilter(value ?? "all")}
-                        data={[
-                            { value: "all", label: "All Categories" },
-                            { value: "sales", label: "Sales" },
-                            { value: "expenses", label: "Expenses" },
-                            { value: "payroll", label: "Payroll" },
-                        ]}
-                        w={160}
+                    <Checkbox
+                        label="Show archived reports"
+                        checked={showArchived}
+                        onChange={(event) => setShowArchived(event.currentTarget.checked)}
+                        size="sm"
                     />
                 </Flex>
             </Paper>
-
-            {/* Tabs for Categories */}
-            <Tabs value={activeTab} onChange={(value) => setActiveTab(value ?? "all")}>
-                <Tabs.List>
-                    <Tabs.Tab value="all">All Reports</Tabs.Tab>
-                    <Tabs.Tab value="sales">Sales</Tabs.Tab>
-                    <Tabs.Tab value="expenses">Expenses</Tabs.Tab>
-                    <Tabs.Tab value="payroll">Payroll</Tabs.Tab>
-                </Tabs.List>
-            </Tabs>
 
             {/* Bulk Actions */}
             {selectedReports.length > 0 && (
@@ -290,9 +442,11 @@ export default function ReportsPage() {
                         <ActionIcon variant="light" size="sm" aria-label="Download">
                             <IconDownload size={16} />
                         </ActionIcon>
-                        <ActionIcon variant="light" color="red" size="sm" aria-label="Delete">
-                            <IconTrash size={16} />
-                        </ActionIcon>
+                        {canCreateReports && (
+                            <ActionIcon variant="light" color="red" size="sm" aria-label="Delete">
+                                <IconTrash size={16} />
+                            </ActionIcon>
+                        )}
                     </Flex>
                 </Paper>
             )}
@@ -334,6 +488,61 @@ export default function ReportsPage() {
             <Group justify="center">
                 <Pagination total={Math.ceil(filteredReports.length / 10)} />
             </Group>
+
+            {/* Monthly Report Details Modal */}
+            <MonthlyReportDetailsModal
+                opened={detailsModalOpened}
+                onClose={handleCloseDetailsModal}
+                report={selectedReport}
+                onDelete={handleDeleteReport}
+            />
+
+            {/* Monthly Report Edit Modal */}
+            <MonthlyReportEditModal
+                opened={editModalOpened}
+                onClose={handleCloseEditModal}
+                report={selectedReport}
+                onUpdate={handleReportUpdate}
+            />
+
+            {/* Delete Confirmation Modal */}
+            <Modal opened={deleteConfirmModalOpened} onClose={cancelDeleteReport} title="Confirm Deletion" centered>
+                <Stack gap="md">
+                    <Text>
+                        Are you sure you want to delete this monthly report? This action cannot be undone and will
+                        permanently remove the report and all related data.
+                    </Text>
+                    <Group justify="flex-end" gap="sm">
+                        <Button variant="default" onClick={cancelDeleteReport}>
+                            Cancel
+                        </Button>
+                        <Button color="red" onClick={confirmDeleteReport}>
+                            Delete Report
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            {/* Archive Confirmation Modal */}
+            <Modal opened={archiveConfirmModalOpened} onClose={cancelArchiveReport} title="Confirm Archive" centered>
+                <Stack gap="md">
+                    <Text>
+                        Are you sure you want to archive this monthly report? This action cannot be undone. Archived
+                        reports will be hidden from the main view and cannot be modified.
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                        Report: <strong>{reportToArchive?.name}</strong>
+                    </Text>
+                    <Group justify="flex-end" gap="sm">
+                        <Button variant="default" onClick={cancelArchiveReport}>
+                            Cancel
+                        </Button>
+                        <Button color="orange" onClick={confirmArchiveReport}>
+                            Archive Report
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </Stack>
     );
 }

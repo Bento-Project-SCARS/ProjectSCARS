@@ -1,6 +1,7 @@
 "use client";
 
 import { Navbar } from "@/components/LoggedInNavBar/Navbar";
+import { customLogger } from "@/lib/api/customLogger";
 import { useAuth } from "@/lib/providers/auth";
 import { useUser } from "@/lib/providers/user";
 import { AppShell, ScrollArea } from "@mantine/core";
@@ -14,7 +15,7 @@ import { useEffect } from "react";
  * @param {React.ReactNode} props.children - The child components to render within the layout.
  */
 export default function LoggedInLayout({ children }: { children: React.ReactNode }) {
-    console.debug("Rendering LoggedInLayout");
+    customLogger.debug("Rendering LoggedInLayout");
     return <LoggedInContent>{children}</LoggedInContent>;
 }
 
@@ -29,11 +30,11 @@ function LoggedInContent({ children }: { children: React.ReactNode }) {
     const [opened] = useDisclosure();
     const router = useRouter();
 
-    console.debug("Rendering LoggedInContent", { isAuthenticated });
+    customLogger.debug("Rendering LoggedInContent", { isAuthenticated });
     useEffect(() => {
         // If the user is not authenticated, redirect to the login page.
         if (!isAuthenticated) {
-            console.debug("User is not authenticated, redirecting to login page");
+            customLogger.debug("User is not authenticated, redirecting to login page");
             clearUserInfo();
             router.push("/login");
         }

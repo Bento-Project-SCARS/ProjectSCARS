@@ -6,6 +6,7 @@ import {
     IconBuilding,
     IconDashboard,
     IconGraph,
+    IconHelp,
     IconLogout,
     IconNotification,
     IconReport,
@@ -22,6 +23,7 @@ import { GetAccessTokenHeader } from "@/lib/utils/token";
 import { JSX, useEffect, useState } from "react";
 
 import classes from "./Navbar.module.css";
+import { customLogger } from "@/lib/api/customLogger";
 
 export const Navbar: React.FC = () => {
     const [links, setLinks] = useState<JSX.Element[]>([]);
@@ -45,10 +47,10 @@ export const Navbar: React.FC = () => {
             }
 
             const quantity = result.data as number;
-            console.debug("Fetched notifications quantity:", quantity);
+            customLogger.debug("Fetched notifications quantity:", quantity);
             setNotificationsQuantity(quantity);
         } catch (error) {
-            console.error("Failed to fetch notifications quantity:", error);
+            customLogger.error("Failed to fetch notifications quantity:", error);
             setNotificationsQuantity(0);
         }
     };
@@ -68,7 +70,7 @@ export const Navbar: React.FC = () => {
                 link: "/statistics",
                 label: "School Statistics",
                 requiredPermission: "users:self:read",
-                showForRoles: [2, 3, 4, 5],
+                showForRoles: [4, 5],
                 icon: <IconGraph stroke={1.5} />,
             },
             {
@@ -76,13 +78,13 @@ export const Navbar: React.FC = () => {
                 link: "/reports",
                 label: "School Reports",
                 requiredPermission: "reports:local:read",
-                showForRoles: [2, 3, 4, 5],
+                showForRoles: [4, 5],
                 icon: <IconReport stroke={1.5} />,
             },
             {
                 key: "adminStatistics",
                 link: "/administration/statistics",
-                label: "Statistics Management",
+                label: "All School Statistics",
                 requiredPermission: "reports:global:read",
                 showForRoles: [2, 3], // Superintendent, Administrator only
                 icon: <IconGraph stroke={1.5} />,
@@ -90,7 +92,7 @@ export const Navbar: React.FC = () => {
             {
                 key: "adminReports",
                 link: "/administration/reports",
-                label: "Report Management",
+                label: "All School Reports",
                 requiredPermission: "reports:global:read",
                 showForRoles: [2, 3], // Superintendent, Administrator only
                 icon: <IconReport stroke={1.5} />,
@@ -160,7 +162,7 @@ export const Navbar: React.FC = () => {
                                 onClick={(event) => {
                                     if (!permissionGranted) {
                                         event.preventDefault();
-                                        console.warn(`User does not have permission for ${item.label}`);
+                                        customLogger.warn(`User does not have permission for ${item.label}`);
                                         return;
                                     }
                                 }}
@@ -172,7 +174,7 @@ export const Navbar: React.FC = () => {
         });
     }, [notificationsQuantity, pathname, userCtx.userPermissions, userCtx.userInfo?.roleId]);
 
-    console.debug("Returning Navbar");
+    customLogger.debug("Returning Navbar");
     return (
         <nav className={classes.navbar}>
             <div className={classes.navbarMain}>
@@ -195,12 +197,22 @@ export const Navbar: React.FC = () => {
             <div className={classes.footer}>
                 <NavLink
                     href="#"
+                    label="Documentation"
+                    leftSection={<IconHelp className={classes.linkIcon} stroke={1.5} />}
+                    onClick={(event) => {
+                        event.preventDefault();
+                        customLogger.info("User accessed documentation");
+                        router.push("/documentation");
+                    }}
+                />
+                <NavLink
+                    href="#"
                     label="Logout"
                     leftSection={<IconLogout className={classes.linkIcon} stroke={1.5} />}
                     onClick={(event) => {
                         event.preventDefault();
                         logout();
-                        console.info("User logged out");
+                        customLogger.info("User logged out");
                         notifications.show({
                             id: "logged-out",
                             title: "Logged Out",

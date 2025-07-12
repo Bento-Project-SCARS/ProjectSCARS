@@ -3,7 +3,9 @@
 import { useEffect } from "react";
 import { AuthProvider } from "@/lib/providers/auth";
 import { UserProvider } from "@/lib/providers/user";
+import { DynamicThemeProvider } from "@/lib/providers/theme";
 import { useMantineColorScheme } from "@mantine/core";
+import { customLogger } from "@/lib/api/customLogger";
 
 /**
  * ContextWrapperLayout component that wraps the application in context providers.
@@ -21,10 +23,12 @@ export default function ContextWrapperLayout({ children }: { children: React.Rea
         }
     }, [setColorScheme]);
 
-    console.debug("Rendering ContextWrapperLayout");
+    customLogger.debug("Rendering ContextWrapperLayout");
     return (
-        <AuthProvider>
-            <UserProvider>{children}</UserProvider>
-        </AuthProvider>
+        <DynamicThemeProvider>
+            <AuthProvider>
+                <UserProvider>{children}</UserProvider>
+            </AuthProvider>
+        </DynamicThemeProvider>
     );
 }

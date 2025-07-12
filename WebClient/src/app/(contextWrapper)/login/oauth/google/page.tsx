@@ -11,6 +11,7 @@ import {
     type JwtToken,
     type UserPublic,
 } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { useAuth } from "@/lib/providers/auth";
 import { useUser } from "@/lib/providers/user";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
@@ -28,20 +29,20 @@ function OAuthGoogleContent() {
     const [success, setSuccess] = useState(false);
     const [isLoading, handlers] = useDisclosure(true);
 
-    console.debug("Rendering OAuthGooglePage");
+    customLogger.debug("Rendering OAuthGooglePage");
     useEffect(() => {
         const handleOAuth = async () => {
-            console.debug("OAuthGooglePage useEffect started");
+            customLogger.debug("OAuthGooglePage useEffect started");
             const code = params.get("code");
             if (!code) {
-                console.error("No authorization code found in query parameters.");
+                customLogger.error("No authorization code found in query parameters.");
                 handlers.close();
                 return;
             }
-            console.debug("Authorization code found:", code);
+            customLogger.debug("Authorization code found:", code);
             try {
                 if (authCtx.isAuthenticated) {
-                    console.debug("User is already authenticated, linking Google account.");
+                    customLogger.debug("User is already authenticated, linking Google account.");
                     try {
                         const result = await oauthLinkGoogleV1AuthOauthGoogleLinkGet({
                             query: { code: code },
@@ -74,7 +75,7 @@ function OAuthGoogleContent() {
                                 icon: <IconX />,
                             });
                         } else {
-                            console.error("Error linking Google account:", error);
+                            customLogger.error("Error linking Google account:", error);
                             notifications.show({
                                 id: "link-error",
                                 title: "Linking failed",
@@ -90,7 +91,7 @@ function OAuthGoogleContent() {
                     }
                 }
 
-                console.debug("User is not authenticated, proceeding with OAuth authentication.");
+                customLogger.debug("User is not authenticated, proceeding with OAuth authentication.");
                 const result = await googleOauthCallbackV1AuthOauthGoogleCallbackGet({
                     query: { code: code },
                 });
@@ -115,7 +116,7 @@ function OAuthGoogleContent() {
                 }
 
                 const [userInfo, userPermissions] = userInfoResult.data as [UserPublic, string[]];
-                console.debug("User info fetched successfully", { id: userInfo.id, username: userInfo.username });
+                customLogger.debug("User info fetched successfully", { id: userInfo.id, username: userInfo.username });
                 let userAvatar: Blob | null = null;
                 if (userInfo.avatarUrn) {
                     const avatarResult = await getUserAvatarEndpointV1UsersAvatarGet({
@@ -125,13 +126,13 @@ function OAuthGoogleContent() {
 
                     if (!avatarResult.error) {
                         userAvatar = avatarResult.data as Blob;
-                        console.debug("User avatar fetched successfully", { size: userAvatar.size });
+                        customLogger.debug("User avatar fetched successfully", { size: userAvatar.size });
                     } else {
-                        console.warn("Failed to fetch avatar:", avatarResult.error);
+                        customLogger.warn("Failed to fetch avatar:", avatarResult.error);
                         userAvatar = null;
                     }
                 } else {
-                    console.warn("No avatar found for user, using default avatar.");
+                    customLogger.warn("No avatar found for user, using default avatar.");
                 }
                 userCtx.updateUserInfo(userInfo, userPermissions, userAvatar);
                 notifications.show({
@@ -152,7 +153,7 @@ function OAuthGoogleContent() {
                         icon: <IconX />,
                     });
                 } else {
-                    console.error("Error logging in:", error);
+                    customLogger.error("Error logging in:", error);
                     notifications.show({
                         id: "login-error",
                         title: "Login failed",

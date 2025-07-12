@@ -1,7 +1,7 @@
 /**
  * Example of how to integrate the ReceiptAttachmentUploader component
  * into liquidation and payroll report forms.
- * 
+ *
  * This demonstrates:
  * 1. Managing receipt attachments state
  * 2. Converting attachments to URN list for backend storage
@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import { Button, Group, Stack, TextInput, NumberInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { ReceiptAttachmentUploader } from "./ReceiptAttachmentUploader";
+import { customLogger } from "@/lib/api/customLogger";
 
 interface ReceiptAttachment {
     file_urn: string;
@@ -31,10 +32,7 @@ interface LiquidationFormExampleProps {
     onSubmit: (entry: ReportEntry) => void;
 }
 
-export function LiquidationFormExample({
-    initialEntry,
-    onSubmit,
-}: LiquidationFormExampleProps) {
+export function LiquidationFormExample({ initialEntry, onSubmit }: LiquidationFormExampleProps) {
     const [attachments, setAttachments] = useState<ReceiptAttachment[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -54,7 +52,7 @@ export function LiquidationFormExample({
         if (initialEntry?.receipt_attachment_urns) {
             try {
                 const urns = JSON.parse(initialEntry.receipt_attachment_urns) as string[];
-                
+
                 // Convert URNs to attachment objects (you would typically fetch these from the server)
                 // For now, we'll create placeholder objects
                 const loadedAttachments: ReceiptAttachment[] = urns.map((urn, index) => ({
@@ -63,10 +61,10 @@ export function LiquidationFormExample({
                     file_size: 0, // In real app, fetch from server
                     file_type: "image/jpeg", // In real app, fetch from server
                 }));
-                
+
                 setAttachments(loadedAttachments);
             } catch (error) {
-                console.error("Error parsing receipt attachment URNs:", error);
+                customLogger.error("Error parsing receipt attachment URNs:", error);
             }
         }
     }, [initialEntry]);
@@ -75,7 +73,7 @@ export function LiquidationFormExample({
         setLoading(true);
         try {
             // Convert attachments to URN list for backend storage
-            const receiptUrns = attachments.map(attachment => attachment.file_urn);
+            const receiptUrns = attachments.map((attachment) => attachment.file_urn);
             const receiptUrnString = receiptUrns.length > 0 ? JSON.stringify(receiptUrns) : null;
 
             const entry: ReportEntry = {
@@ -133,9 +131,9 @@ export function LiquidationFormExample({
 
 /**
  * Usage example:
- * 
+ *
  * const [reportEntries, setReportEntries] = useState<ReportEntry[]>([]);
- * 
+ *
  * const handleEntrySubmit = (entry: ReportEntry) => {
  *     if (entry.id) {
  *         // Update existing entry
@@ -145,7 +143,7 @@ export function LiquidationFormExample({
  *         setReportEntries(prev => [...prev, { ...entry, id: Date.now() }]);
  *     }
  * };
- * 
+ *
  * return (
  *     <LiquidationFormExample
  *         onSubmit={handleEntrySubmit}

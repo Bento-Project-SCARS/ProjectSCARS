@@ -19,6 +19,7 @@ import {
     updateUserAvatarEndpointV1UsersAvatarPatch,
     updateUserEndpointV1UsersPatch,
 } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { GetAllSchools } from "@/lib/api/school";
 import { roles } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
@@ -205,7 +206,7 @@ export default function UsersPage(): JSX.Element {
     };
 
     const handleCreate = () => {
-        console.debug("Creating new user");
+        customLogger.debug("Creating new user");
         // Clear selected user when opening create modal
         setSelectedUser(null);
         setSelectedUserIndex(null);
@@ -213,7 +214,7 @@ export default function UsersPage(): JSX.Element {
     };
 
     const handleInvite = () => {
-        console.debug("Inviting new user");
+        customLogger.debug("Inviting new user");
         // Clear selected user when opening invite modal
         setSelectedUser(null);
         setSelectedUserIndex(null);
@@ -221,7 +222,7 @@ export default function UsersPage(): JSX.Element {
     };
 
     const handleEdit = (index: number, user: UserPublic) => {
-        console.debug(`Editing user ${index}`, user);
+        customLogger.debug(`Editing user ${index}`, user);
         setSelectedUserIndex(index);
         setSelectedUser(user);
     };
@@ -273,7 +274,7 @@ export default function UsersPage(): JSX.Element {
                 icon: isDeactivate ? <IconUserOff /> : <IconUserCheck />,
             });
         } catch (error) {
-            console.error("Bulk action error:", error);
+            customLogger.error("Bulk action error:", error);
             notifications.show({
                 title: "Error",
                 message: `Failed to ${isDeactivate ? "deactivate" : "reactivate"} users`,
@@ -338,7 +339,7 @@ export default function UsersPage(): JSX.Element {
                 icon: <IconSchool />,
             });
         } catch (error) {
-            console.error("Bulk school assignment error:", error);
+            customLogger.error("Bulk school assignment error:", error);
             notifications.show({
                 title: "Error",
                 message: "Failed to assign school to users",
@@ -416,7 +417,7 @@ export default function UsersPage(): JSX.Element {
                 icon: enableForceUpdate ? <IconCheck /> : <IconX />,
             });
         } catch (error) {
-            console.error("Bulk force update toggle error:", error);
+            customLogger.error("Bulk force update toggle error:", error);
             notifications.show({
                 title: "Error",
                 message: `Failed to ${enableForceUpdate ? "enable" : "disable"} Force Update Info for users`,
@@ -456,7 +457,7 @@ export default function UsersPage(): JSX.Element {
                 return url;
             })
             .catch((error: Error) => {
-                console.error("Failed to fetch user avatar:", error);
+                customLogger.error("Failed to fetch user avatar:", error);
                 notifications.show({
                     id: "fetch-user-avatar-error",
                     title: "Error",
@@ -495,7 +496,7 @@ export default function UsersPage(): JSX.Element {
 
                 setAvailableRoles(result.data as Role[]);
             } catch (error) {
-                console.error("Failed to fetch roles:", error);
+                customLogger.error("Failed to fetch roles:", error);
                 if (!fetchRolesErrorShown) {
                     setFetchRolesErrorShown(true);
                     notifications.show({
@@ -515,7 +516,7 @@ export default function UsersPage(): JSX.Element {
                     setAvailableSchools(data);
                 })
                 .catch((error) => {
-                    console.error("Failed to fetch schools:", error);
+                    customLogger.error("Failed to fetch schools:", error);
                     notifications.show({
                         id: "fetch-schools-error",
                         title: "Error",
@@ -543,7 +544,7 @@ export default function UsersPage(): JSX.Element {
                 const data = result.data as UserPublic[];
                 setAllUsers(data);
             } catch (error) {
-                console.error("Failed to fetch users:", error);
+                customLogger.error("Failed to fetch users:", error);
                 handleFetchError();
             }
         };
@@ -592,7 +593,7 @@ export default function UsersPage(): JSX.Element {
     //     return () => window.removeEventListener("mousemove", handleMouseMove);
     // }, []);
 
-    console.debug("Rendering UsersPage");
+    customLogger.debug("Rendering UsersPage");
     return (
         <>
             <Stack gap="md">

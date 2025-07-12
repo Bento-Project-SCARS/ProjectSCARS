@@ -1,6 +1,7 @@
 "use client";
 
 import { Role, School, UserPublic, UserUpdate, createNewUserV1AuthCreatePost } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import { Button, Modal, PasswordInput, Select, Stack, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
@@ -106,7 +107,7 @@ export function CreateUserComponent({
                 form.reset();
                 if (onUserCreate) onUserCreate(updatedUser);
             } catch (err) {
-                console.error(err instanceof Error ? err.message : "Failed to create user");
+                customLogger.error(err instanceof Error ? err.message : "Failed to create user");
                 notifications.show({
                     id: "create-user-error",
                     title: "Error",

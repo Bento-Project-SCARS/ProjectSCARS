@@ -12,6 +12,7 @@ import {
     UserPublic,
     UserUpdate,
 } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { Program } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
@@ -233,7 +234,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
 
     const handleSubmit = async () => {
         buttonLoadingHandler.open();
-        console.debug("Submitting form values:", userChange.getValues());
+        customLogger.debug("Submitting form values:", userChange.getValues());
 
         // Validate password match if password is being updated
         if (userPermissions?.includes("users:self:modify:password") && pwValue !== pwConfValue) {
@@ -294,7 +295,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
         }
 
         updateData.forceUpdateInfo = false;
-        console.debug("Sending only modified fields:", updateData);
+        customLogger.debug("Sending only modified fields:", updateData);
 
         try {
             // Call the API to update user information
@@ -322,7 +323,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
             });
 
             if (newResult.error || !newResult.data) {
-                console.error(
+                customLogger.error(
                     `Failed to fetch updated user profile: ${newResult.response.status} ${newResult.response.statusText}`
                 );
                 notifications.show({
@@ -340,7 +341,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
             // Redirect to the home page after successful update
             router.push("/");
         } catch (error) {
-            console.error("Error updating user information:", error);
+            customLogger.error("Error updating user information:", error);
             notifications.show({
                 id: "user-update-error",
                 title: "Update Failed",
@@ -366,13 +367,13 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                 deactivated: userInfo.deactivated,
                 forceUpdateInfo: userInfo.forceUpdateInfo,
             };
-            console.debug("Setting form values:", new_values);
+            customLogger.debug("Setting form values:", new_values);
             userChange.setValues(new_values);
         }
     }, [userInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
-        console.debug("MainLoginComponent mounted, checking OAuth support");
+        customLogger.debug("MainLoginComponent mounted, checking OAuth support");
         // Check if OAuth is supported by the server
         const fetchOAuthSupport = async () => {
             try {
@@ -387,16 +388,16 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                 }
 
                 const response = result.data;
-                console.debug("OAuth support response:", response);
+                customLogger.debug("OAuth support response:", response);
                 if (response) {
                     setOAuthSupport({
                         google: response.google,
                         microsoft: response.microsoft,
                         facebook: response.facebook,
                     });
-                    console.info("OAuth support updated", response);
+                    customLogger.info("OAuth support updated", response);
                 } else {
-                    console.warn("No OAuth support information received from server.");
+                    customLogger.warn("No OAuth support information received from server.");
                     notifications.show({
                         id: "oauth-support-error",
                         title: "OAuth Support Error",
@@ -406,7 +407,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                     });
                 }
             } catch (error) {
-                console.error("Error fetching OAuth support:", error);
+                customLogger.error("Error fetching OAuth support:", error);
                 notifications.show({
                     id: "oauth-support-fetch-error",
                     title: "OAuth Support Fetch Error",
@@ -745,7 +746,10 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                                                 color: "green",
                                                             });
                                                         } catch (error) {
-                                                            console.error("Failed to unlink Google account:", error);
+                                                            customLogger.error(
+                                                                "Failed to unlink Google account:",
+                                                                error
+                                                            );
                                                             notifications.show({
                                                                 title: "Unlink Failed",
                                                                 message:

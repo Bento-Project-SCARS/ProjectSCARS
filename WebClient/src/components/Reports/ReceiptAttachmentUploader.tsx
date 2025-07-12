@@ -1,21 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-    ActionIcon,
-    FileInput,
-    Group,
-    Image,
-    Paper,
-    Stack,
-    Text,
-    Tooltip,
-} from "@mantine/core";
+import { ActionIcon, FileInput, Group, Image, Paper, Stack, Text, Tooltip } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconTrash, IconUpload, IconFile, IconEye } from "@tabler/icons-react";
-import { 
+import {
     uploadAttachmentEndpointV1ReportsAttachmentsUploadPost,
-    getAttachmentsMetadataEndpointV1ReportsAttachmentsMetadataPost
+    getAttachmentsMetadataEndpointV1ReportsAttachmentsMetadataPost,
 } from "@/lib/api/csclient";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
+import { customLogger } from "@/lib/api/customLogger";
 
 interface ReceiptAttachment {
     file_urn: string;
@@ -55,9 +47,7 @@ export function ReceiptAttachmentUploader({
             });
 
             if (result.error) {
-                throw new Error(
-                    `Failed to load attachments: ${result.response.status} ${result.response.statusText}`
-                );
+                throw new Error(`Failed to load attachments: ${result.response.status} ${result.response.statusText}`);
             }
 
             const loadedAttachments: ReceiptAttachment[] = result.data.map((metadata) => ({
@@ -70,7 +60,7 @@ export function ReceiptAttachmentUploader({
             onAttachmentsChange(loadedAttachments);
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unknown error occurred";
-            console.error("Failed to load existing attachments:", message);
+            customLogger.error("Failed to load existing attachments:", message);
             notifications.show({
                 id: "attachment-load-error",
                 title: "Failed to Load Attachments",
@@ -112,9 +102,7 @@ export function ReceiptAttachmentUploader({
             });
 
             if (result.error) {
-                throw new Error(
-                    `Failed to upload file: ${result.response.status} ${result.response.statusText}`
-                );
+                throw new Error(`Failed to upload file: ${result.response.status} ${result.response.statusText}`);
             }
 
             const newAttachment: ReceiptAttachment = {
@@ -134,7 +122,7 @@ export function ReceiptAttachmentUploader({
             });
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unknown error occurred";
-            console.error("Receipt upload failed:", message);
+            customLogger.error("Receipt upload failed:", message);
             notifications.show({
                 id: "receipt-upload-error",
                 title: "Upload Failed",

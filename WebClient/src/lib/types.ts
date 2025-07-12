@@ -1,7 +1,6 @@
 export interface UserPreferences {
     accentColor: string;
     language: string;
-    timezone: string;
 }
 
 export type ServerMessageType = {

@@ -4,6 +4,7 @@ import { CreateSchoolComponent } from "@/components/SchoolManagement/CreateSchoo
 import { EditSchoolComponent } from "@/components/SchoolManagement/EditSchoolComponent";
 import SchoolStatusFilter from "@/components/SchoolManagement/SchoolStatusFilter";
 import { School } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { GetAllSchools, GetSchoolLogo, GetSchoolQuantity } from "@/lib/api/school";
 import { useUser } from "@/lib/providers/user";
 import {
@@ -94,7 +95,7 @@ export default function SchoolsPage(): JSX.Element {
                     setLogos((prev) => new Map(prev).set(logoUrn, url));
                     return url;
                 } else {
-                    console.debug("Logo file is empty, removing from cache");
+                    customLogger.debug("Logo file is empty, removing from cache");
                     setLogosRequested((prev) => {
                         const newSet = new Set(prev);
                         newSet.delete(logoUrn);
@@ -104,7 +105,7 @@ export default function SchoolsPage(): JSX.Element {
                 }
             })
             .catch((error) => {
-                console.error("Failed to fetch school logo:", error);
+                customLogger.error("Failed to fetch school logo:", error);
                 setLogosRequested((prev) => {
                     const newSet = new Set(prev);
                     newSet.delete(logoUrn);
@@ -136,7 +137,7 @@ export default function SchoolsPage(): JSX.Element {
             setTotalSchools(quantity);
             setTotalPages(Math.ceil(quantity / pageLimit));
         } catch (error) {
-            console.error("Failed to fetch school quantity:", error);
+            customLogger.error("Failed to fetch school quantity:", error);
             notifications.show({
                 id: "fetch-school-quantity-error",
                 title: "Error",
@@ -151,7 +152,7 @@ export default function SchoolsPage(): JSX.Element {
             const data = await GetAllSchools(pageOffset, pageLimit);
             setSchools(data);
         } catch (error) {
-            console.error("Failed to fetch schools:", error);
+            customLogger.error("Failed to fetch schools:", error);
             notifications.show({
                 id: "fetch-schools-error",
                 title: "Failed to fetch schools list",
@@ -224,7 +225,7 @@ export default function SchoolsPage(): JSX.Element {
         setSchools(filtered.slice(start, end));
     }, [allSchools, searchTerm, statusFilter, schoolPerPage, currentPage]);
 
-    console.debug("Rendering SchoolsPage");
+    customLogger.debug("Rendering SchoolsPage");
     return (
         <>
             <Flex mih={50} gap="xl" justify="flex-start" align="center" direction="row" wrap="nowrap">
@@ -399,7 +400,7 @@ export default function SchoolsPage(): JSX.Element {
                     value={schoolPerPage.toString()}
                     onChange={async (value) => {
                         if (value) {
-                            console.debug("Changing schools per page to", value);
+                            customLogger.debug("Changing schools per page to", value);
                             const newSchoolPerPage = parseInt(value);
                             setSchoolPerPage(newSchoolPerPage);
                             // Reset to page 1 and fetch users with new page size

@@ -34,6 +34,7 @@ import {
 } from "@/lib/api/csclient";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import { Connections } from "@/lib/info";
+import { customLogger } from "@/lib/api/customLogger";
 
 interface ReportAttachment {
     file_urn: string;
@@ -131,7 +132,7 @@ export function ReportAttachmentManager({
             });
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unknown error occurred";
-            console.error("Failed to load existing attachments:", message);
+            customLogger.error("Failed to load existing attachments:", message);
             notifications.show({
                 id: "attachment-load-error",
                 title: "Failed to Load Attachments",
@@ -210,7 +211,7 @@ export function ReportAttachmentManager({
 
                     uploadedAttachments.push(newAttachment);
                 } catch (error) {
-                    console.error(`Failed to upload ${file.name}:`, error);
+                    customLogger.error(`Failed to upload ${file.name}:`, error);
                     failedUploads.push(file.name);
                 }
             }
@@ -242,7 +243,7 @@ export function ReportAttachmentManager({
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unknown error occurred";
-            console.error("Upload failed:", message);
+            customLogger.error("Upload failed:", message);
             notifications.show({
                 id: "upload-error",
                 title: "Upload Failed",
@@ -271,7 +272,7 @@ export function ReportAttachmentManager({
                 });
 
                 if (result.error) {
-                    console.warn(`Failed to delete attachment from server: ${result.response.status}`);
+                    customLogger.warn(`Failed to delete attachment from server: ${result.response.status}`);
                     // Continue with local removal even if server deletion fails
                 }
             }
@@ -287,7 +288,7 @@ export function ReportAttachmentManager({
                 color: "blue",
             });
         } catch (error) {
-            console.error("Failed to remove attachment:", error);
+            customLogger.error("Failed to remove attachment:", error);
             notifications.show({
                 id: "remove-error",
                 title: "Failed to Remove",
@@ -368,7 +369,7 @@ export function ReportAttachmentManager({
                 downloadAttachment(attachment);
             }
         } catch (error) {
-            console.error("Failed to preview attachment:", error);
+            customLogger.error("Failed to preview attachment:", error);
             notifications.show({
                 id: "preview-error",
                 title: "Preview Failed",
@@ -438,7 +439,7 @@ export function ReportAttachmentManager({
                 color: "green",
             });
         } catch (error) {
-            console.error("Failed to download attachment:", error);
+            customLogger.error("Failed to download attachment:", error);
             notifications.show({
                 id: "download-error",
                 title: "Download Failed",

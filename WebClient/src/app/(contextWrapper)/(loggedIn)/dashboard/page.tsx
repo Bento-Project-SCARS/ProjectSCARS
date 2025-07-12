@@ -11,6 +11,7 @@ import {
     getUserProfileEndpointV1UsersMeGet,
     type UserPublic,
 } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { notificationIcons } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
@@ -108,14 +109,14 @@ const DashboardContent = memo(function DashboardContent() {
                         const userAvatar = avatarResult.data as Blob;
                         userCtx.updateUserInfo(userInfo, userPermissions, userAvatar);
                     } else if (mounted) {
-                        console.warn("Failed to fetch avatar:", avatarResult.error);
+                        customLogger.warn("Failed to fetch avatar:", avatarResult.error);
                         userCtx.updateUserInfo(userInfo, userPermissions);
                     }
                 } else if (mounted) {
                     userCtx.updateUserInfo(userInfo, userPermissions);
                 }
             } catch (error) {
-                console.error("Failed to fetch user info:", error);
+                customLogger.error("Failed to fetch user info:", error);
                 if (mounted) {
                     notifications.show({
                         id: "user-info-error",
@@ -170,7 +171,7 @@ const DashboardContent = memo(function DashboardContent() {
                     setHVNotifications(notifications);
                 }
             } catch (error) {
-                console.error("Failed to fetch notifications:", error);
+                customLogger.error("Failed to fetch notifications:", error);
                 if (mounted) {
                     notifications.show({
                         id: "notifications-error",

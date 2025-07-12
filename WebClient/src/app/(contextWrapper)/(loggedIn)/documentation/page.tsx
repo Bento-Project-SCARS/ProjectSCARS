@@ -2,6 +2,7 @@
 
 import classes from "@/app/(contextWrapper)/(loggedIn)/documentation/DocumentationPage.module.css";
 import { ProgramTitleCenter } from "@/components/ProgramTitleCenter";
+import { customLogger } from "@/lib/api/customLogger";
 import { useAuth } from "@/lib/providers/auth";
 import { Container, Divider, TableOfContents, Text, Title } from "@mantine/core";
 import { useAnimation } from "motion/react";
@@ -10,7 +11,7 @@ export default function DocumentationPage() {
     const logoControls = useAnimation();
     const { isAuthenticated } = useAuth();
 
-    console.debug("Rendering DocumentationPage", { isAuthenticated });
+    customLogger.debug("Rendering DocumentationPage", { isAuthenticated });
     return (
         <Container>
             <ProgramTitleCenter classes={classes} logoControls={logoControls} />

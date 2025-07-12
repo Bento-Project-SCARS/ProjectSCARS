@@ -1,22 +1,9 @@
 "use client";
 
 import { deleteSchoolInfoEndpointV1SchoolsDelete, School, SchoolDelete, SchoolUpdate } from "@/lib/api/csclient";
-import {
-    RemoveSchoolLogo,
-    UpdateSchoolInfo,
-    UploadSchoolLogo,
-} from "@/lib/api/school";
-import {
-    Button,
-    Card,
-    Center,
-    FileButton,
-    Flex,
-    Image,
-    Modal,
-    Switch,
-    TextInput,
-} from "@mantine/core";
+import { customLogger } from "@/lib/api/customLogger";
+import { RemoveSchoolLogo, UpdateSchoolInfo, UploadSchoolLogo } from "@/lib/api/school";
+import { Button, Card, Center, FileButton, Flex, Image, Modal, Switch, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
@@ -91,11 +78,11 @@ export function EditSchoolComponent({
                 const hasValuesToRemove = Object.values(valuesToRemove).some(
                     (field, index) => index > 0 && field === true
                 );
-                console.debug("Has values to remove:", hasValuesToRemove);
+                customLogger.debug("Has values to remove:", hasValuesToRemove);
                 if (hasValuesToRemove) {
                     const deleteResult = await deleteSchoolInfoEndpointV1SchoolsDelete({ body: valuesToRemove });
                     if (deleteResult.error) {
-                        console.error("Failed to remove school values:", deleteResult.error);
+                        customLogger.error("Failed to remove school values:", deleteResult.error);
                         notifications.show({
                             id: "remove-school-values-error",
                             title: "Error",
@@ -113,15 +100,15 @@ export function EditSchoolComponent({
                 let updatedSchool = { ...editSchool };
                 // logo removal
                 if (logoToRemove && editSchool.logoUrn) {
-                    console.debug("Removing logo...");
+                    customLogger.debug("Removing logo...");
                     try {
                         const schoolAfterLogoRemoval = await RemoveSchoolLogo(editSchool.id);
                         if (schoolAfterLogoRemoval) {
                             updatedSchool = schoolAfterLogoRemoval;
                         }
-                        console.debug("Logo removed successfully.");
+                        customLogger.debug("Logo removed successfully.");
                     } catch (error) {
-                        console.error("Failed to remove school logo:", error);
+                        customLogger.error("Failed to remove school logo:", error);
                         notifications.show({
                             id: "remove-logo-error",
                             title: "Error",
@@ -135,16 +122,16 @@ export function EditSchoolComponent({
                 }
                 // logo upload
                 else if (editSchoolLogo) {
-                    console.debug("Uploading logo...");
+                    customLogger.debug("Uploading logo...");
                     try {
                         const schoolAfterLogoUpload = await UploadSchoolLogo(editSchool.id, editSchoolLogo);
                         updatedSchool = schoolAfterLogoUpload;
                         if (schoolAfterLogoUpload.logoUrn) {
                             fetchSchoolLogo(schoolAfterLogoUpload.logoUrn);
                         }
-                        console.debug("Logo uploaded successfully.");
+                        customLogger.debug("Logo uploaded successfully.");
                     } catch (error) {
-                        console.error("Failed to upload school logo:", error);
+                        customLogger.error("Failed to upload school logo:", error);
                         notifications.show({
                             id: "upload-logo-error",
                             title: "Error",
@@ -154,7 +141,7 @@ export function EditSchoolComponent({
                         });
                     }
                 }
-                
+
                 notifications.show({
                     id: "school-update-success",
                     title: "Success",
@@ -162,10 +149,10 @@ export function EditSchoolComponent({
                     color: "green",
                     icon: <IconPencilCheck />,
                 });
-                
+
                 if (onSchoolUpdate) onSchoolUpdate(updatedSchool);
             } catch (error) {
-                console.error("Failed to update school:", error);
+                customLogger.error("Failed to update school:", error);
                 notifications.show({
                     id: "school-update-error",
                     title: "Error",
@@ -183,11 +170,21 @@ export function EditSchoolComponent({
                 if (onRefresh) onRefresh();
             }
         }
-    }, [index, editSchool, logoToRemove, editSchoolLogo, setIndex, onSchoolUpdate, onRefresh, fetchSchoolLogo, buttonStateHandler]);
+    }, [
+        index,
+        editSchool,
+        logoToRemove,
+        editSchoolLogo,
+        setIndex,
+        onSchoolUpdate,
+        onRefresh,
+        fetchSchoolLogo,
+        buttonStateHandler,
+    ]);
 
     const setLogo = useCallback(async (file: File | null) => {
         if (file === null) {
-            console.debug("No file selected, skipping upload...");
+            customLogger.debug("No file selected, skipping upload...");
             return;
         }
         setEditSchoolLogo(file);

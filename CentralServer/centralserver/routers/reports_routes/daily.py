@@ -1181,10 +1181,19 @@ async def get_daily_sales_and_purchases_summary(
     ).one_or_none()
 
     if monthly_report is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Monthly report not found.",
-        )
+        # No monthly report exists, return empty summary
+        return {
+            "total_sales": 0.0,
+            "total_purchases": 0.0,
+            "net_income": 0.0,
+            "average_daily_sales": 0.0,
+            "average_daily_purchases": 0.0,
+            "average_daily_net_income": 0.0,
+            "days_with_entries": 0,
+            "highest_sales_day": None,
+            "highest_purchases_day": None,
+            "highest_net_income_day": None,
+        }
 
     # Get all entries for the month
     entries = session.exec(
@@ -1244,6 +1253,252 @@ async def get_daily_sales_and_purchases_summary(
                 highest_net_income_entry.sales - highest_net_income_entry.purchases, 2
             ),
         },
+    }
+
+
+@router.get("/{school_id}/{year}/{month}/summary/filtered")
+async def get_daily_sales_and_purchases_summary_filtered(
+    token: logged_in_dep,
+    session: Annotated[Session, Depends(get_db_session)],
+    school_id: int,
+    year: int,
+    month: int,
+    include_drafts: bool = False,
+    include_reviews: bool = True,
+    include_approved: bool = True,
+    include_rejected: bool = True,
+    include_received: bool = True,
+    include_archived: bool = True,
+) -> dict[str, float | int | dict[str, float | int] | str | None]:
+    """Get a summary of daily sales and purchases for a specific month with status filtering.
+
+    Args:
+        token: The decoded JWT token of the logged-in user.
+        session: The database session.
+        school_id: The ID of the school to get the summary for.
+        year: The year of the report.
+        month: The month of the report.
+        include_drafts: Whether to include draft reports.
+        include_reviews: Whether to include reports under review.
+        include_approved: Whether to include approved reports.
+        include_rejected: Whether to include rejected reports.
+        include_received: Whether to include received reports.
+        include_archived: Whether to include archived reports.
+
+    Returns:
+        Summary statistics including totals, averages, and entry count from filtered reports.
+    """
+
+    user = await get_user(token.id, session, by_id=True)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found.",
+        )
+
+    required_permission = (
+        "reports:local:read" if user.schoolId == school_id else "reports:global:read"
+    )
+    if not await verify_user_permission(required_permission, session, token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to view daily report summaries.",
+        )
+
+    # Apply role-based filtering for admin users
+    if user.roleId in [2, 3]:  # Superintendent or Administrator
+        # Admin users should only see approved reports
+        include_drafts = False
+        include_reviews = False
+        include_approved = True
+        include_rejected = False
+
+    logger.debug(
+        "user `%s` (role %s) requesting filtered daily sales summary for school %s for %s-%s. "
+        "Filters: drafts=%s, reviews=%s, approved=%s, rejected=%s, received=%s, archived=%s",
+        token.id,
+        user.roleId,
+        school_id,
+        year,
+        month,
+        include_drafts,
+        include_reviews,
+        include_approved,
+        include_rejected,
+        include_received,
+        include_archived,
+    )
+
+    # Build list of allowed statuses based on filters
+    allowed_statuses: list[ReportStatus] = []
+    if include_drafts:
+        allowed_statuses.append(ReportStatus.DRAFT)
+    if include_reviews:
+        allowed_statuses.append(ReportStatus.REVIEW)
+    if include_approved:
+        allowed_statuses.append(ReportStatus.APPROVED)
+    if include_rejected:
+        allowed_statuses.append(ReportStatus.REJECTED)
+    if include_received:
+        allowed_statuses.append(ReportStatus.RECEIVED)
+    if include_archived:
+        allowed_statuses.append(ReportStatus.ARCHIVED)
+
+    if not allowed_statuses:
+        # No statuses allowed, return empty summary
+        return {
+            "total_sales": 0.0,
+            "total_purchases": 0.0,
+            "net_income": 0.0,
+            "average_daily_sales": 0.0,
+            "average_daily_purchases": 0.0,
+            "average_daily_net_income": 0.0,
+            "days_with_entries": 0,
+            "highest_sales_day": None,
+            "highest_purchases_day": None,
+            "highest_net_income_day": None,
+            "filtered_by": {
+                "include_drafts": include_drafts,
+                "include_reviews": include_reviews,
+                "include_approved": include_approved,
+                "include_rejected": include_rejected,
+                "include_received": include_received,
+                "include_archived": include_archived,
+            },
+        }
+
+    # Get the monthly report and check its status
+    monthly_report = session.exec(
+        select(MonthlyReport).where(
+            MonthlyReport.id == datetime.date(year=year, month=month, day=1),
+            MonthlyReport.submittedBySchool == school_id,
+        )
+    ).one_or_none()
+
+    if monthly_report is None:
+        # No monthly report exists, return empty summary
+        return {
+            "total_sales": 0.0,
+            "total_purchases": 0.0,
+            "net_income": 0.0,
+            "average_daily_sales": 0.0,
+            "average_daily_purchases": 0.0,
+            "average_daily_net_income": 0.0,
+            "days_with_entries": 0,
+            "highest_sales_day": None,
+            "highest_purchases_day": None,
+            "highest_net_income_day": None,
+            "filtered_by": {
+                "include_drafts": include_drafts,
+                "include_reviews": include_reviews,
+                "include_approved": include_approved,
+                "include_rejected": include_rejected,
+                "include_received": include_received,
+                "include_archived": include_archived,
+            },
+        }
+
+    # Check if the monthly report's status is in the allowed statuses
+    if monthly_report.reportStatus not in allowed_statuses:
+        # Monthly report status is filtered out, return empty summary
+        return {
+            "total_sales": 0.0,
+            "total_purchases": 0.0,
+            "net_income": 0.0,
+            "average_daily_sales": 0.0,
+            "average_daily_purchases": 0.0,
+            "average_daily_net_income": 0.0,
+            "days_with_entries": 0,
+            "highest_sales_day": None,
+            "highest_purchases_day": None,
+            "highest_net_income_day": None,
+            "filtered_by": {
+                "include_drafts": include_drafts,
+                "include_reviews": include_reviews,
+                "include_approved": include_approved,
+                "include_rejected": include_rejected,
+                "include_received": include_received,
+                "include_archived": include_archived,
+            },
+            "monthly_report_status": monthly_report.reportStatus.value,
+        }
+
+    # Get all entries for the month (since the monthly report passed the filter)
+    entries = session.exec(
+        select(DailyFinancialReportEntry).where(
+            DailyFinancialReportEntry.parent
+            == datetime.date(year=year, month=month, day=1),
+        )
+    ).all()
+
+    if not entries:
+        return {
+            "total_sales": 0.0,
+            "total_purchases": 0.0,
+            "net_income": 0.0,
+            "average_daily_sales": 0.0,
+            "average_daily_purchases": 0.0,
+            "average_daily_net_income": 0.0,
+            "days_with_entries": 0,
+            "highest_sales_day": None,
+            "highest_purchases_day": None,
+            "highest_net_income_day": None,
+            "filtered_by": {
+                "include_drafts": include_drafts,
+                "include_reviews": include_reviews,
+                "include_approved": include_approved,
+                "include_rejected": include_rejected,
+                "include_received": include_received,
+                "include_archived": include_archived,
+            },
+            "monthly_report_status": monthly_report.reportStatus.value,
+        }
+
+    total_sales = sum(entry.sales for entry in entries)
+    total_purchases = sum(entry.purchases for entry in entries)
+    net_income = total_sales - total_purchases
+
+    entry_count = len(entries)
+    avg_sales = total_sales / entry_count if entry_count > 0 else 0
+    avg_purchases = total_purchases / entry_count if entry_count > 0 else 0
+    avg_net_income = net_income / entry_count if entry_count > 0 else 0
+
+    # Find days with highest values
+    highest_sales_entry = max(entries, key=lambda e: e.sales)
+    highest_purchases_entry = max(entries, key=lambda e: e.purchases)
+    highest_net_income_entry = max(entries, key=lambda e: e.sales - e.purchases)
+
+    return {
+        "total_sales": round(total_sales, 2),
+        "total_purchases": round(total_purchases, 2),
+        "net_income": round(net_income, 2),
+        "average_daily_sales": round(avg_sales, 2),
+        "average_daily_purchases": round(avg_purchases, 2),
+        "average_daily_net_income": round(avg_net_income, 2),
+        "days_with_entries": entry_count,
+        "highest_sales_day": {
+            "day": highest_sales_entry.day,
+            "sales": highest_sales_entry.sales,
+        },
+        "highest_purchases_day": {
+            "day": highest_purchases_entry.day,
+            "purchases": highest_purchases_entry.purchases,
+        },
+        "highest_net_income_day": {
+            "day": highest_net_income_entry.day,
+            "net_income": round(
+                highest_net_income_entry.sales - highest_net_income_entry.purchases, 2
+            ),
+        },
+        "filtered_by": {
+            "include_drafts": include_drafts,
+            "include_reviews": include_reviews,
+            "include_approved": include_approved,
+            "include_rejected": include_rejected,
+            "include_received": include_received,
+            "include_archived": include_archived,
+        },
+        "monthly_report_status": monthly_report.reportStatus.value,
     }
 
 
@@ -1344,7 +1599,7 @@ async def change_daily_report_status(
     status_change: StatusChangeRequest,
 ) -> DailyFinancialReport:
     """Change the status of a daily financial report based on user role and permissions.
-    
+
     Args:
         token: The decoded JWT token of the logged-in user.
         session: The database session.
@@ -1352,21 +1607,21 @@ async def change_daily_report_status(
         year: The year of the report.
         month: The month of the report.
         status_change: The status change request containing new status and optional comments.
-        
+
     Returns:
         The updated daily financial report.
-        
+
     Raises:
         HTTPException: If user doesn't have permission, report not found, or invalid transition.
     """
-    
+
     user = await get_user(token.id, session, by_id=True)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found.",
         )
-    
+
     # Check basic permission to read reports
     required_permission = (
         "reports:local:read" if user.schoolId == school_id else "reports:global:read"
@@ -1376,7 +1631,7 @@ async def change_daily_report_status(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to access this report.",
         )
-    
+
     logger.debug(
         "user `%s` (role %s) attempting to change status of daily financial report for school %s, %s-%s to %s",
         token.id,
@@ -1386,17 +1641,19 @@ async def change_daily_report_status(
         month,
         status_change.new_status.value,
     )
-    
+
     # Get the monthly report and then the daily financial report
-    monthly_report = ReportStatusManager.get_monthly_report(session, school_id, year, month)
-    
+    monthly_report = ReportStatusManager.get_monthly_report(
+        session, school_id, year, month
+    )
+
     daily_report = monthly_report.daily_financial_report
     if daily_report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Daily financial report not found.",
         )
-    
+
     # Use the generic status manager to change the status
     return ReportStatusManager.change_report_status(
         session=session,
@@ -1419,25 +1676,25 @@ async def get_daily_valid_status_transitions(
     month: int,
 ) -> dict[str, str | list[str]]:
     """Get the valid status transitions for a daily financial report based on user role.
-    
+
     Args:
         token: The decoded JWT token of the logged-in user.
         session: The database session.
         school_id: The ID of the school the report belongs to.
         year: The year of the report.
         month: The month of the report.
-        
+
     Returns:
         A dictionary containing the current status and valid transitions.
     """
-    
+
     user = await get_user(token.id, session, by_id=True)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found.",
         )
-    
+
     # Check basic permission to read reports
     required_permission = (
         "reports:local:read" if user.schoolId == school_id else "reports:global:read"
@@ -1447,16 +1704,18 @@ async def get_daily_valid_status_transitions(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to access this report.",
         )
-    
+
     # Get the monthly report and then the daily financial report
-    monthly_report = ReportStatusManager.get_monthly_report(session, school_id, year, month)
-    
+    monthly_report = ReportStatusManager.get_monthly_report(
+        session, school_id, year, month
+    )
+
     daily_report = monthly_report.daily_financial_report
     if daily_report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Daily financial report not found.",
         )
-    
+
     # Get valid transitions for this user role and current status
     return ReportStatusManager.get_valid_transitions_response(user, daily_report)

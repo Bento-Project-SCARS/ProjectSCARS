@@ -1,6 +1,7 @@
 "use client";
 
 import { JwtToken } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { LocalStorage } from "@/lib/info";
 import { performLogout } from "@/lib/utils/logout";
 import { CheckAndHandleMissingTokens } from "@/lib/utils/token";
@@ -27,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: AuthProviderProps): ReactNode {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
         if (typeof window === "undefined") {
-            console.debug("Window is undefined");
+            customLogger.debug("Window is undefined");
             return false; // Server-side rendering
         }
 
@@ -40,7 +41,7 @@ export function AuthProvider({ children }: AuthProviderProps): ReactNode {
      * @param {JwtToken} tokens - The tokens returned from the server.
      */
     const login = (tokens: JwtToken) => {
-        console.debug("Setting local login state to true", { hasRefreshToken: !!tokens.refresh_token });
+        customLogger.debug("Setting local login state to true", { hasRefreshToken: !!tokens.refresh_token });
         localStorage.setItem(LocalStorage.accessToken, JSON.stringify(tokens));
         setIsAuthenticated(true);
     };
@@ -49,7 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps): ReactNode {
      * Log the user out by removing all user data from local storage and updating the authentication state.
      */
     const logout = () => {
-        console.debug("Setting local login state to false");
+        customLogger.debug("Setting local login state to false");
         setIsAuthenticated(false);
         performLogout(false); // Don't redirect here since we might want to handle it differently in React components
     };
@@ -77,11 +78,11 @@ export function AuthProvider({ children }: AuthProviderProps): ReactNode {
  * @returns {AuthContextType} The authentication context containing the authentication state and functions.
  */
 export function useAuth(): AuthContextType {
-    console.debug("useAuth called");
+    customLogger.debug("useAuth called");
     const ctx = useContext(AuthContext);
     if (!ctx) {
         const errorMessage = "useAuth must be used within an AuthProvider";
-        console.error(errorMessage);
+        customLogger.error(errorMessage);
         throw new Error(errorMessage);
     }
     return ctx;

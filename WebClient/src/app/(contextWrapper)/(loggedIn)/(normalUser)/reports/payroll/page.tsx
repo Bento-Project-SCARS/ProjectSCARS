@@ -2,10 +2,12 @@
 
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
 import { SplitButton } from "@/components/SplitButton/SplitButton";
+import { SubmitForReviewButton } from "@/components/SubmitForReview";
 import { SignatureCanvas } from "@/components/SignatureCanvas/SignatureCanvas";
 import { useUser } from "@/lib/providers/user";
 import {
     ActionIcon,
+    Alert,
     Badge,
     Box,
     Button,
@@ -40,6 +42,7 @@ import {
     IconUser,
     IconUsers,
     IconX,
+    IconAlertCircle,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
@@ -48,6 +51,7 @@ import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import * as csclient from "@/lib/api/csclient";
 import {
     createSchoolPayrollReportV1ReportsPayrollSchoolIdYearMonthPatch,
     createBulkPayrollReportEntriesV1ReportsPayrollSchoolIdYearMonthEntriesBulkPost,
@@ -55,6 +59,7 @@ import {
     getSchoolPayrollReportV1ReportsPayrollSchoolIdYearMonthGet,
     getSchoolPayrollReportEntriesV1ReportsPayrollSchoolIdYearMonthEntriesGet,
 } from "@/lib/api/csclient/sdk.gen";
+import { customLogger } from "@/lib/api/customLogger";
 
 dayjs.extend(weekOfYear);
 dayjs.extend(isoWeek);
@@ -123,6 +128,24 @@ function PayrollPageContent() {
 
     // Loading state for existing reports
     const [isLoadingExistingReport, setIsLoadingExistingReport] = useState(false);
+
+    // Signature state management for report approval
+    // Reason: Track prepared by (current user) and noted by (selected user) for report signatures
+    const [preparedBy, setPreparedBy] = useState<string | null>(null);
+    const [notedBy, setNotedBy] = useState<string | null>(null);
+    const [preparedBySignatureUrl, setPreparedBySignatureUrl] = useState<string | null>(null);
+    const [notedBySignatureUrl, setNotedBySignatureUrl] = useState<string | null>(null);
+
+    // User selection state for "noted by" field
+    const [schoolUsers, setSchoolUsers] = useState<csclient.UserSimple[]>([]);
+    const [selectedNotedByUser, setSelectedNotedByUser] = useState<csclient.UserSimple | null>(null);
+    const [userSelectModalOpened, setUserSelectModalOpened] = useState(false);
+    const [reportApprovalModalOpened, setReportApprovalModalOpened] = useState(false);
+    const [reportApprovalCheckbox, setReportApprovalCheckbox] = useState(false);
+    const [approvalConfirmed, setApprovalConfirmed] = useState(false);
+
+    // Report status tracking
+    const [reportStatus, setReportStatus] = useState<string | null>(null);
 
     useEffect(() => {
         if (weekPeriods.length > 0 && !selectedWeekId) {
@@ -268,25 +291,25 @@ function PayrollPageContent() {
                     setAttendanceRecords(loadedAttendanceRecords);
                     setEmployeeSignatures(loadedSignatures);
 
-                    notifications.show({
-                        title: "Report Loaded",
-                        message: `Existing payroll report for ${dayjs(selectedMonth).format(
-                            "MMMM YYYY"
-                        )} has been loaded.`,
-                        color: "blue",
-                        icon: <IconCheck size={18} />,
-                    });
+                    // notifications.show({
+                    //     title: "Report Loaded",
+                    //     message: `Existing payroll report for ${dayjs(selectedMonth).format(
+                    //         "MMMM YYYY"
+                    //     )} has been loaded.`,
+                    //     color: "blue",
+                    //     icon: <IconCheck size={18} />,
+                    // });
                 }
             } catch (error) {
                 // If 404, it means no existing report - this is fine
-                if ((error as { status?: number })?.status !== 404) {
-                    console.error("Error loading existing payroll report:", error);
-                    notifications.show({
-                        title: "Notice",
-                        message: "No existing payroll report found for this month. Starting with a blank report.",
-                        color: "yellow",
-                    });
-                }
+                // if ((error as { status?: number })?.status !== 404) {
+                //     customLogger.error("Error loading existing payroll report:", error);
+                //     notifications.show({
+                //         title: "Notice",
+                //         message: "No existing payroll report found for this month. Starting with a blank report.",
+                //         color: "yellow",
+                //     });
+                // }
                 // Clear data for fresh start
                 setEmployees([]);
                 setAttendanceRecords([]);
@@ -301,6 +324,108 @@ function PayrollPageContent() {
             loadExistingPayrollReport();
         }
     }, [selectedMonth, userCtx.userInfo?.schoolId, weekPeriods]);
+
+    // Initialize signature data and load school users
+    useEffect(() => {
+        const initializeSignatures = async () => {
+            if (!userCtx.userInfo) return;
+
+            /**
+             * Load users from the same school for "noted by" selection
+             * Using the simplified user endpoint to avoid permission errors
+             * Reason: Allow selection of any user from the same school for report approval
+             */
+            const loadSchoolUsers = async () => {
+                if (!userCtx.userInfo?.schoolId) return;
+
+                try {
+                    const response = await csclient.getUsersSimpleEndpointV1UsersSimpleGet();
+
+                    if (response.data) {
+                        // Note: The simple endpoint already filters users to the current user's school
+                        // so we don't need to filter by schoolId here
+                        setSchoolUsers(response.data);
+                    }
+                } catch (error) {
+                    customLogger.error("Failed to load school users:", error);
+                    notifications.show({
+                        title: "Error",
+                        message: "Failed to load users from your school.",
+                        color: "red",
+                    });
+                }
+            };
+
+            // Set prepared by to current user ID (ensure we store user ID, not name)
+            setPreparedBy(userCtx.userInfo.id);
+
+            // Load current user's signature if available
+            if (userCtx.userInfo.signatureUrn) {
+                try {
+                    const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
+                        query: { fn: userCtx.userInfo.signatureUrn },
+                    });
+
+                    // Response data is already a blob, create object URL for display
+                    if (response.data) {
+                        const signatureUrl = URL.createObjectURL(response.data as Blob);
+                        setPreparedBySignatureUrl(signatureUrl);
+                    }
+                } catch (error) {
+                    customLogger.error("Failed to load user signature:", error);
+                }
+            }
+
+            // Load school users for noted by selection
+            await loadSchoolUsers();
+        };
+
+        initializeSignatures();
+    }, [userCtx.userInfo]);
+
+    // Effect to match loaded notedBy ID with actual user and load their signature
+    useEffect(() => {
+        const loadNotedBySignature = async () => {
+            // If we have a notedBy ID from a loaded report but no selected user yet
+            if (notedBy && !selectedNotedByUser && schoolUsers.length > 0) {
+                // Try to find the user by matching their ID
+                const matchingUser = schoolUsers.find((user) => user.id === notedBy);
+
+                if (matchingUser) {
+                    setSelectedNotedByUser(matchingUser);
+
+                    // Load the user's signature if available and report is approved
+                    if (matchingUser.signatureUrn && reportStatus === "approved") {
+                        try {
+                            const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
+                                query: { fn: matchingUser.signatureUrn },
+                            });
+
+                            if (response.data) {
+                                const signatureUrl = URL.createObjectURL(response.data as Blob);
+                                setNotedBySignatureUrl(signatureUrl);
+                            }
+                        } catch (error) {
+                            customLogger.error("Failed to load noted by user signature:", error);
+                        }
+                    }
+                }
+            }
+        };
+
+        loadNotedBySignature();
+    }, [notedBy, selectedNotedByUser, schoolUsers, reportStatus]);
+
+    // Effect to handle report status changes - clear signatures if not approved
+    useEffect(() => {
+        if (reportStatus && reportStatus !== "approved") {
+            // Clear noted by signature if report is not approved
+            if (notedBySignatureUrl) {
+                URL.revokeObjectURL(notedBySignatureUrl);
+                setNotedBySignatureUrl(null);
+            }
+        }
+    }, [reportStatus, notedBySignatureUrl]);
 
     const generateWeeksForMonth = (monthDate: Date, includedDays: number[] = [1, 2, 3, 4, 5]) => {
         const startOfMonth = dayjs(monthDate).startOf("month");
@@ -361,6 +486,69 @@ function PayrollPageContent() {
 
     const handleClose = () => {
         router.push("/reports");
+    };
+
+    // Signature management handlers
+    /**
+     * Handle selection of a user for the "noted by" field
+     * Ensures user ID (not name) is stored for the notedBy field
+     */
+    const handleNotedByUserSelect = async (user: csclient.UserSimple) => {
+        const userName = `${user.nameFirst} ${user.nameLast}`.trim();
+        setNotedBy(userName);
+        setSelectedNotedByUser(user);
+
+        // Reset approval state when changing the noted by user
+        setApprovalConfirmed(false);
+        setReportApprovalCheckbox(false);
+        setNotedBySignatureUrl(null);
+
+        setUserSelectModalOpened(false);
+    };
+
+    /**
+     * Clear the noted by user selection
+     * Reason: Allow user to remove the noted by selection and signature
+     */
+    const handleClearNotedBy = () => {
+        setNotedBy(null);
+        setSelectedNotedByUser(null);
+        setApprovalConfirmed(false);
+        setReportApprovalCheckbox(false);
+        if (notedBySignatureUrl) {
+            URL.revokeObjectURL(notedBySignatureUrl);
+            setNotedBySignatureUrl(null);
+        }
+    };
+
+    const openApprovalModal = () => {
+        setReportApprovalCheckbox(false);
+        setReportApprovalModalOpened(true);
+    };
+
+    const handleReportApprovalConfirm = async () => {
+        if (!reportApprovalCheckbox || !selectedNotedByUser?.signatureUrn) return;
+
+        try {
+            const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
+                query: { fn: selectedNotedByUser.signatureUrn },
+            });
+
+            if (response.data) {
+                const signatureUrl = URL.createObjectURL(response.data as Blob);
+                setNotedBySignatureUrl(signatureUrl);
+                setApprovalConfirmed(true);
+            }
+        } catch (error) {
+            customLogger.error("Failed to load noted by user signature:", error);
+            notifications.show({
+                title: "Error",
+                message: "Failed to load signature.",
+                color: "red",
+            });
+        }
+
+        setReportApprovalModalOpened(false);
     };
 
     const openEmployeeModal = (employee?: Employee) => {
@@ -682,7 +870,7 @@ function PayrollPageContent() {
             // Redirect back to reports page
             router.push("/reports");
         } catch (error) {
-            console.error("Error submitting payroll report:", error);
+            customLogger.error("Error submitting payroll report:", error);
             notifications.show({
                 title: "Error",
                 message: "Failed to submit the payroll report. Please try again.",
@@ -801,7 +989,7 @@ function PayrollPageContent() {
                 icon: <IconCheck size={18} />,
             });
         } catch (error) {
-            console.error("Error saving draft:", error);
+            customLogger.error("Error saving draft:", error);
             notifications.show({
                 title: "Error",
                 message: "Failed to save the draft. Please try again.",
@@ -1180,7 +1368,7 @@ function PayrollPageContent() {
                                         <Table.Th style={{ width: "50px" }}>#</Table.Th>
                                         <Table.Th style={{ width: "250px" }}>Name</Table.Th>
                                         <Table.Th style={{ width: "200px" }}>Total Amount Received</Table.Th>
-                                        <Table.Th style={{ width: "50px" }}>Signature</Table.Th>
+                                        {/* <Table.Th style={{ width: "50px" }}>Signature</Table.Th> */}
                                     </Table.Tr>
                                 </Table.Thead>
                                 <Table.Tbody>
@@ -1207,7 +1395,7 @@ function PayrollPageContent() {
                                                         })}
                                                     </Text>
                                                 </Table.Td>
-                                                <Table.Td>
+                                                {/* <Table.Td>
                                                     <div className="flex items-center gap-2">
                                                         {signature ? (
                                                             <div className="flex items-center gap-2">
@@ -1246,7 +1434,7 @@ function PayrollPageContent() {
                                                             </Button>
                                                         )}
                                                     </div>
-                                                </Table.Td>
+                                                </Table.Td> */}
                                             </Table.Tr>
                                         );
                                     })}
@@ -1270,6 +1458,22 @@ function PayrollPageContent() {
 
                 {/* Action Buttons */}
                 <Group justify="flex-end" gap="md">
+                    <SubmitForReviewButton
+                        reportType="payroll"
+                        reportPeriod={{
+                            schoolId: userCtx.userInfo?.schoolId || 0,
+                            year: selectedMonth?.getFullYear() || new Date().getFullYear(),
+                            month: selectedMonth ? selectedMonth.getMonth() + 1 : new Date().getMonth() + 1,
+                        }}
+                        onSuccess={() => {
+                            notifications.show({
+                                title: "Status Updated",
+                                message: "Report status has been updated to 'Review'.",
+                                color: "green",
+                            });
+                        }}
+                    />
+                    {/* Action Buttons */}
                     <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100">
                         Cancel
                     </Button>
@@ -1306,40 +1510,69 @@ function PayrollPageContent() {
                                 overflow: "hidden",
                             }}
                         >
-                            {/* <Image src="" alt="Prepared by signature" fit="contain" w="100%" h="100%" /> */}
-                            <Text size="xs" c="dimmed">
-                                Signature
-                            </Text>
+                            {preparedBySignatureUrl ? (
+                                <Image
+                                    src={preparedBySignatureUrl}
+                                    alt="Prepared by signature"
+                                    fit="contain"
+                                    w="100%"
+                                    h="100%"
+                                />
+                            ) : (
+                                <Text size="xs" c="dimmed">
+                                    Signature
+                                </Text>
+                            )}
                         </Box>
                         <div style={{ textAlign: "center" }}>
                             <Text fw={600} size="sm">
-                                NAME
+                                {userCtx.userInfo
+                                    ? `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim()
+                                    : "N/A"}
                             </Text>
                             <Text size="xs" c="dimmed">
-                                Position
+                                {userCtx.userInfo?.position || "Position"}
                             </Text>
                         </div>
                     </Stack>
                 </Card>
 
-                {/* Noted By */}
-                <Card withBorder p="md" style={{ position: "relative" }}>
-                    <Badge
-                        size="sm"
-                        color="orange"
-                        variant="light"
-                        style={{
-                            position: "absolute",
-                            top: "12px",
-                            right: "12px",
-                        }}
-                    >
-                        Status
-                    </Badge>
+                {/* Noted by */}
+                <Card withBorder p="md">
                     <Stack gap="sm" align="center">
-                        <Text size="sm" c="dimmed" fw={500} style={{ alignSelf: "flex-start" }}>
-                            Noted by
-                        </Text>
+                        <Group justify="space-between" w="100%">
+                            <Group gap="sm">
+                                <Text size="sm" c="dimmed" fw={500}>
+                                    Noted by
+                                </Text>
+                                <Badge
+                                    size="sm"
+                                    color={
+                                        approvalConfirmed && reportStatus === "approved"
+                                            ? "green"
+                                            : selectedNotedByUser
+                                            ? "yellow"
+                                            : "gray"
+                                    }
+                                    variant="light"
+                                >
+                                    {approvalConfirmed && reportStatus === "approved"
+                                        ? "Approved"
+                                        : selectedNotedByUser
+                                        ? "Pending Approval"
+                                        : "Not Selected"}
+                                </Badge>
+                            </Group>
+                            {selectedNotedByUser ? (
+                                <Button size="xs" variant="subtle" color="red" onClick={handleClearNotedBy}>
+                                    Clear
+                                </Button>
+                            ) : (
+                                <Button size="xs" variant="light" onClick={() => setUserSelectModalOpened(true)}>
+                                    Select User
+                                </Button>
+                            )}
+                        </Group>
                         <Box
                             w={200}
                             h={80}
@@ -1353,31 +1586,45 @@ function PayrollPageContent() {
                                 overflow: "hidden",
                             }}
                         >
-                            {/* <Image src="" alt="Noted by signature" fit="contain" w="100%" h="100%" /> */}
-                            <Text size="xs" c="dimmed">
-                                Signature
-                            </Text>
+                            {notedBySignatureUrl && approvalConfirmed && reportStatus === "approved" ? (
+                                <Image
+                                    src={notedBySignatureUrl}
+                                    alt="Noted by signature"
+                                    fit="contain"
+                                    w="100%"
+                                    h="100%"
+                                />
+                            ) : (
+                                <Stack align="center" gap="xs">
+                                    <Text size="xs" c="dimmed">
+                                        {selectedNotedByUser ? "Awaiting Approval" : "Signature"}
+                                    </Text>
+                                </Stack>
+                            )}
                         </Box>
                         <div style={{ textAlign: "center" }}>
                             <Text fw={600} size="sm">
-                                NAME
+                                {notedBy || "NAME"}
                             </Text>
                             <Text size="xs" c="dimmed">
-                                Position
+                                {selectedNotedByUser?.position || "Position"}
                             </Text>
+                            {selectedNotedByUser &&
+                                !approvalConfirmed &&
+                                selectedNotedByUser.id === userCtx.userInfo?.id && (
+                                    <Button
+                                        size="xs"
+                                        variant="light"
+                                        color="blue"
+                                        onClick={openApprovalModal}
+                                        disabled={!selectedNotedByUser.signatureUrn}
+                                        mt="xs"
+                                        mb="xs"
+                                    >
+                                        Approve Report
+                                    </Button>
+                                )}
                         </div>
-                        {/* Approval Button for Principals */}
-                        {userCtx.userInfo?.position === "principal" && (
-                            <Button
-                                size="sm"
-                                color="green"
-                                onClick={() => setApprovalModalOpened(true)}
-                                leftSection={<IconCheck size={16} />}
-                                mt="sm"
-                            >
-                                Approve Report
-                            </Button>
-                        )}
                     </Stack>
                 </Card>
             </SimpleGrid>
@@ -1816,6 +2063,104 @@ function PayrollPageContent() {
                     </Stack>
                 </ScrollArea.Autosize>
             </Modal>
+
+            {/* User Selection Modal for "Noted By" */}
+            <Modal
+                opened={userSelectModalOpened}
+                onClose={() => setUserSelectModalOpened(false)}
+                title="Select User for 'Noted By'"
+                size="md"
+                centered
+            >
+                <Stack gap="md">
+                    <Text size="sm" c="dimmed">
+                        Select a user from your school to be noted by on this report:
+                    </Text>
+
+                    {schoolUsers.length === 0 ? (
+                        <Text c="dimmed" ta="center">
+                            No users found from your school.
+                        </Text>
+                    ) : (
+                        <Stack gap="xs">
+                            {schoolUsers.map((user) => (
+                                <Card
+                                    key={user.id}
+                                    p="sm"
+                                    withBorder
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => handleNotedByUserSelect(user)}
+                                    className="hover:bg-gray-50"
+                                >
+                                    <Group justify="space-between">
+                                        <div>
+                                            <Text fw={500}>
+                                                {user.nameFirst} {user.nameLast}
+                                            </Text>
+                                            <Text size="sm" c="dimmed">
+                                                {user.position || "No position specified"}
+                                            </Text>
+                                        </div>
+                                        {user.signatureUrn && (
+                                            <Badge size="sm" color="green" variant="light">
+                                                Has Signature
+                                            </Badge>
+                                        )}
+                                    </Group>
+                                </Card>
+                            ))}
+                        </Stack>
+                    )}
+
+                    <Group justify="flex-end" mt="md">
+                        <Button variant="outline" onClick={() => setUserSelectModalOpened(false)}>
+                            Cancel
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
+
+            {/* Approval Modal */}
+            <Modal
+                opened={reportApprovalModalOpened}
+                onClose={() => setReportApprovalModalOpened(false)}
+                title="Confirm Report Approval"
+                centered
+                size="md"
+            >
+                <Stack gap="md">
+                    <Alert variant="light" color="blue" title="Important Notice" icon={<IconAlertCircle size={16} />}>
+                        You are about to approve this payroll report as{" "}
+                        <strong>
+                            {selectedNotedByUser?.nameFirst} {selectedNotedByUser?.nameLast}
+                        </strong>
+                        . This action will apply your digital signature to the document.
+                    </Alert>
+
+                    <Text size="sm">By approving this report, you confirm that:</Text>
+
+                    <Stack gap="xs" pl="md">
+                        <Text size="sm">• You have reviewed all entries and data</Text>
+                        <Text size="sm">• The information is accurate and complete</Text>
+                        <Text size="sm">• You authorize the use of the digital signature</Text>
+                    </Stack>
+
+                    <Checkbox
+                        label="I confirm that I have the authority to approve this report and apply the digital signature"
+                        checked={reportApprovalCheckbox}
+                        onChange={(event) => setReportApprovalCheckbox(event.currentTarget.checked)}
+                    />
+
+                    <Group justify="flex-end" gap="sm">
+                        <Button variant="outline" onClick={() => setReportApprovalModalOpened(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleReportApprovalConfirm} disabled={!reportApprovalCheckbox} color="green">
+                            Approve & Sign
+                        </Button>
+                    </Group>
+                </Stack>
+            </Modal>
         </div>
     );
 
@@ -1850,7 +2195,7 @@ function PayrollPageContent() {
             setApprovalModalOpened(false);
             setApprovalCheckbox(false);
         } catch (error) {
-            console.error("Error approving report:", error);
+            customLogger.error("Error approving report:", error);
             notifications.show({
                 title: "Error",
                 message: "Failed to approve the report. Please try again.",

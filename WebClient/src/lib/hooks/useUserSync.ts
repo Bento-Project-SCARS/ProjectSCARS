@@ -1,4 +1,5 @@
 import { getUserAvatarEndpointV1UsersAvatarGet, getUserProfileEndpointV1UsersMeGet } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { useAuth } from "@/lib/providers/auth";
 import { useUser } from "@/lib/providers/user";
 import { useCallback, useRef } from "react";
@@ -35,7 +36,7 @@ export function useUserSync() {
                             userAvatar = avatarResult.data as Blob;
                         }
                     } catch (error) {
-                        console.warn("Failed to fetch user avatar:", error);
+                        customLogger.warn("Failed to fetch user avatar:", error);
                     }
                 }
 
@@ -44,7 +45,7 @@ export function useUserSync() {
             }
             return false;
         } catch (error) {
-            console.error("Failed to refresh user data:", error);
+            customLogger.error("Failed to refresh user data:", error);
             return false;
         }
     }, [updateUserInfo]);
@@ -76,13 +77,13 @@ export function useUserSync() {
                 const serverLastModified = new Date(fetchedUserInfo.lastModified);
 
                 if (serverLastModified > localLastModified) {
-                    console.info("Server-side user data is newer. Refreshing local data...");
+                    customLogger.info("Server-side user data is newer. Refreshing local data...");
                     return await refreshUserData();
                 }
             }
             return false;
         } catch (error) {
-            console.error("Failed to check for user updates:", error);
+            customLogger.error("Failed to check for user updates:", error);
             return false;
         }
     }, [isAuthenticated, userInfo, refreshUserData]);

@@ -23,6 +23,7 @@ import { GetSchoolInfo } from "@/lib/api/school";
 import { useCallback, useEffect, useState } from "react";
 import dayjs from "dayjs";
 import { notifications } from "@mantine/notifications";
+import { customLogger } from "@/lib/api/customLogger";
 
 const icons = {
     user: IconUserPlus,
@@ -66,7 +67,7 @@ export default function StatisticsPage() {
                 }
             }
         } catch (err) {
-            console.error("Error fetching schools:", err);
+            customLogger.error("Error fetching schools:", err);
             notifications.show({
                 title: "Error",
                 message: "Failed to load schools",
@@ -213,7 +214,7 @@ export default function StatisticsPage() {
                             }
                         }
                     } catch (err) {
-                        console.warn(`Failed to fetch data for school ${school.name}:`, err);
+                        customLogger.warn(`Failed to fetch data for school ${school.name}:`, err);
                     }
                 }
 
@@ -345,7 +346,7 @@ export default function StatisticsPage() {
                 });
             }
         } catch (err) {
-            console.error("Error fetching financial data:", err);
+            customLogger.error("Error fetching financial data:", err);
             const errorMessage = err instanceof Error ? err.message : "Failed to load financial data";
             setError(errorMessage);
             notifications.show({

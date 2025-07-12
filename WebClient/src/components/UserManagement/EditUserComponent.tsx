@@ -41,6 +41,7 @@ import dayjs from "dayjs";
 import { motion } from "motion/react";
 
 import { useEffect, useState } from "react";
+import { customLogger } from "@/lib/api/customLogger";
 
 interface EditUserProps {
     index: number;
@@ -121,9 +122,9 @@ export function EditUserComponent({
         },
     });
 
-    console.debug("form initial values:", form.values);
+    customLogger.debug("form initial values:", form.values);
     useEffect(() => {
-        console.debug("EditUserComponent mounted with index:", index);
+        customLogger.debug("EditUserComponent mounted with index:", index);
         setAvatarRemoved(false);
         setEditUserAvatar(null);
         setPasswordValue(""); // Reset password field when component mounts
@@ -139,7 +140,7 @@ export function EditUserComponent({
 
     const setAvatar = async (file: File | null) => {
         if (file === null) {
-            console.debug("No file selected, skipping upload...");
+            customLogger.debug("No file selected, skipping upload...");
             return;
         }
         const fileSizeMB = file.size / (1024 * 1024);
@@ -281,9 +282,9 @@ export function EditUserComponent({
 
             if (avatarRemoved && currentAvatarUrn) {
                 try {
-                    console.debug("Removing avatar...");
+                    customLogger.debug("Removing avatar...");
                     await RemoveUserAvatar(values.id);
-                    console.debug("Avatar removed successfully.");
+                    customLogger.debug("Avatar removed successfully.");
                     notifications.show({
                         id: "avatar-remove-success",
                         title: "Success",
@@ -294,7 +295,7 @@ export function EditUserComponent({
                 } catch (error) {
                     if (error instanceof Error) {
                         const detail = error.message || "Failed to remove avatar.";
-                        console.error("Avatar removal failed:", detail);
+                        customLogger.error("Avatar removal failed:", detail);
                         notifications.show({
                             id: "avatar-remove-error",
                             title: "Avatar Removal Failed",
@@ -307,11 +308,11 @@ export function EditUserComponent({
             }
             if (editUserAvatar) {
                 try {
-                    console.debug("Uploading avatar...");
+                    customLogger.debug("Uploading avatar...");
                     updatedUser = await UploadUserAvatar(values.id, editUserAvatar);
                     if (updatedUser.avatarUrn) {
                         fetchUserAvatar(updatedUser.avatarUrn);
-                        console.debug("Avatar uploaded successfully.");
+                        customLogger.debug("Avatar uploaded successfully.");
                         notifications.show({
                             id: "avatar-upload-success",
                             title: "Success",
@@ -323,7 +324,7 @@ export function EditUserComponent({
                 } catch (error) {
                     if (error instanceof Error) {
                         const detail = error.message || "Failed to upload avatar.";
-                        console.error("Avatar upload failed:", detail);
+                        customLogger.error("Avatar upload failed:", detail);
                         notifications.show({
                             id: "avatar-upload-error",
                             title: "Avatar Upload Failed",
@@ -353,7 +354,7 @@ export function EditUserComponent({
                         icon: <IconSendOff />,
                     });
                 }
-                console.error("Update process failed:", error);
+                customLogger.error("Update process failed:", error);
                 notifications.show({
                     id: "user-update-error",
                     title: "Error",
@@ -841,10 +842,16 @@ export function EditUserComponent({
                                         <Text size="sm" fw={500}>
                                             Password strength
                                         </Text>
-                                        <Progress 
-                                            value={getStrength(passwordValue)} 
-                                            color={getStrength(passwordValue) < 50 ? 'red' : getStrength(passwordValue) < 80 ? 'yellow' : 'teal'} 
-                                            size="sm" 
+                                        <Progress
+                                            value={getStrength(passwordValue)}
+                                            color={
+                                                getStrength(passwordValue) < 50
+                                                    ? "red"
+                                                    : getStrength(passwordValue) < 80
+                                                    ? "yellow"
+                                                    : "teal"
+                                            }
+                                            size="sm"
                                         />
                                         <Box>
                                             {requirements.map((requirement, index) => (

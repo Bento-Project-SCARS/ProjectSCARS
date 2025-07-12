@@ -41,6 +41,7 @@ import {
 import { noRetryClient } from "@/lib/api/customClient";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import { useEffect, useState } from "react";
+import { customLogger } from "@/lib/api/customLogger";
 
 interface LoginFormValues {
     username: string;
@@ -91,7 +92,7 @@ export function MainLoginComponent(): React.ReactElement {
      * @return {Promise<void>} A promise that resolves when the login is complete.
      */
     const loginUser = async (values: LoginFormValues): Promise<void> => {
-        console.debug("Logging in user", {
+        customLogger.debug("Logging in user", {
             username: values.username,
             rememberMe: values.rememberMe,
         });
@@ -144,7 +145,7 @@ export function MainLoginComponent(): React.ReactElement {
                 if (result.error) {
                     const errorMessage = `Failed to log in: ${result.response.status} ${result.response.statusText}`;
                     form.setFieldValue("password", "");
-                    console.error(result.error);
+                    customLogger.error(result.error);
                     throw new Error(errorMessage);
                 }
 
@@ -160,7 +161,7 @@ export function MainLoginComponent(): React.ReactElement {
 
                 if (result.error) {
                     const errorMessage = `Failed to validate TOTP: ${result.response.status} ${result.response.statusText}`;
-                    console.error(result.error);
+                    customLogger.error(result.error);
                     throw new Error(errorMessage);
                 }
 
@@ -193,12 +194,12 @@ export function MainLoginComponent(): React.ReactElement {
             if (userInfoResult.error) {
                 const errorMessage = `Failed to get user info: ${userInfoResult.response.status} ${userInfoResult.response.statusText}`;
                 form.setFieldValue("password", "");
-                console.error(errorMessage);
+                customLogger.error(errorMessage);
                 throw new Error(errorMessage);
             }
 
             const [userInfo, userPermissions] = userInfoResult.data as [UserPublic, string[]];
-            console.debug("User info fetched successfully", { id: userInfo.id, username: userInfo.username });
+            customLogger.debug("User info fetched successfully", { id: userInfo.id, username: userInfo.username });
 
             let userAvatar: Blob | null = null;
             if (userInfo.avatarUrn) {
@@ -209,16 +210,16 @@ export function MainLoginComponent(): React.ReactElement {
 
                 if (!avatarResult.error) {
                     userAvatar = avatarResult.data as Blob;
-                    console.debug("User avatar fetched successfully", { size: userAvatar.size });
+                    customLogger.debug("User avatar fetched successfully", { size: userAvatar.size });
                 } else {
-                    console.warn("Failed to fetch avatar:", avatarResult.error);
+                    customLogger.warn("Failed to fetch avatar:", avatarResult.error);
                     userAvatar = null;
                 }
             } else {
-                console.warn("No avatar found for user, using default avatar.");
+                customLogger.warn("No avatar found for user, using default avatar.");
             }
             userCtx.updateUserInfo(userInfo, userPermissions, userAvatar);
-            console.info(`Login successful for user ${values.username}`);
+            customLogger.info(`Login successful for user ${values.username}`);
             notifications.show({
                 id: "login-success",
                 title: "Login successful",
@@ -256,7 +257,7 @@ export function MainLoginComponent(): React.ReactElement {
                     icon: <IconX />,
                 });
             } else {
-                console.error("Error logging in:", error);
+                customLogger.error("Error logging in:", error);
                 notifications.show({
                     id: "login-error",
                     title: "Login failed",
@@ -270,13 +271,13 @@ export function MainLoginComponent(): React.ReactElement {
     };
 
     useEffect(() => {
-        console.debug("MainLoginComponent mounted, checking OAuth support");
+        customLogger.debug("MainLoginComponent mounted, checking OAuth support");
         // Check if OAuth is supported by the server
         getOauthConfigV1AuthConfigOauthGet()
             .then((result) => {
-                console.debug("OAuth support response:", result);
+                customLogger.debug("OAuth support response:", result);
                 if (result.error) {
-                    console.error("OAuth support error:", result.error);
+                    customLogger.error("OAuth support error:", result.error);
                     notifications.show({
                         id: "oauth-support-error",
                         title: "OAuth Support Error",
@@ -294,9 +295,9 @@ export function MainLoginComponent(): React.ReactElement {
                         microsoft: response.microsoft,
                         facebook: response.facebook,
                     });
-                    console.info("OAuth support updated", response);
+                    customLogger.info("OAuth support updated", response);
                 } else {
-                    console.warn("No OAuth support information received from server.");
+                    customLogger.warn("No OAuth support information received from server.");
                     notifications.show({
                         id: "oauth-support-error",
                         title: "OAuth Support Error",
@@ -307,7 +308,7 @@ export function MainLoginComponent(): React.ReactElement {
                 }
             })
             .catch((error) => {
-                console.error("Error fetching OAuth support:", error);
+                customLogger.error("Error fetching OAuth support:", error);
                 notifications.show({
                     id: "oauth-support-fetch-error",
                     title: "OAuth Support Fetch Error",
@@ -318,7 +319,7 @@ export function MainLoginComponent(): React.ReactElement {
             });
     }, []);
 
-    console.debug("Returning MainLoginComponent");
+    customLogger.debug("Returning MainLoginComponent");
     return (
         <Container size={420} my={40} style={{ paddingTop: "150px" }}>
             <ProgramTitleCenter classes={classes} logoControls={logoControls} />
@@ -404,7 +405,7 @@ export function MainLoginComponent(): React.ReactElement {
                                         window.location.href = data.url;
                                     }
                                 } catch (error) {
-                                    console.error("Error starting OAuth:", error);
+                                    customLogger.error("Error starting OAuth:", error);
                                     notifications.show({
                                         title: "Login failed",
                                         message: "Failed to start Google login process.",
@@ -587,7 +588,7 @@ export function MainLoginComponent(): React.ReactElement {
 
                             if (result.error) {
                                 const errorMessage = `Failed to use OTP recovery code: ${result.response.status} ${result.response.statusText}`;
-                                console.error(result.error);
+                                customLogger.error(result.error);
                                 throw new Error(errorMessage);
                             }
 
@@ -601,7 +602,7 @@ export function MainLoginComponent(): React.ReactElement {
 
                             if (userInfoResult.error) {
                                 const errorMessage = `Failed to get user info: ${userInfoResult.response.status} ${userInfoResult.response.statusText}`;
-                                console.error(errorMessage);
+                                customLogger.error(errorMessage);
                                 throw new Error(errorMessage);
                             }
 
@@ -616,7 +617,7 @@ export function MainLoginComponent(): React.ReactElement {
                                 if (!avatarResult.error) {
                                     userAvatar = avatarResult.data as Blob;
                                 } else {
-                                    console.warn("Failed to fetch avatar:", avatarResult.error);
+                                    customLogger.warn("Failed to fetch avatar:", avatarResult.error);
                                     userAvatar = null;
                                 }
                             }
@@ -633,7 +634,7 @@ export function MainLoginComponent(): React.ReactElement {
                             setShowMFAInput(false);
                             router.push("/dashboard");
                         } catch (error) {
-                            console.error("Error using OTP recovery code:", error);
+                            customLogger.error("Error using OTP recovery code:", error);
                             notifications.show({
                                 id: "otp-recovery-error",
                                 title: "OTP Recovery Code Error",

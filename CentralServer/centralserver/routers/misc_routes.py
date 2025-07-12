@@ -141,7 +141,7 @@ async def update_server_config(
             json.dump(current_config, f, indent=4)
 
         return {
-            "message": "Configuration updated successfully. A server restart is required to apply changes."
+            "message": "Configuration updated successfully. A server restart is required to apply all changes."
         }
 
     except Exception as e:

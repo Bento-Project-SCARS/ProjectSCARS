@@ -1,6 +1,7 @@
 "use client";
 
 import { requestVerificationEmailV1AuthEmailRequestPost, updateUserEndpointV1UsersPatch } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import { Button, Center, Container, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
@@ -79,7 +80,7 @@ export function ChangeEmailComponent({
                 });
 
                 if (verificationResult.error) {
-                    console.warn(
+                    customLogger.warn(
                         "Failed to send verification email:",
                         verificationResult.response.status,
                         verificationResult.response.statusText
@@ -103,7 +104,7 @@ export function ChangeEmailComponent({
                     });
                 }
             } catch (verificationError) {
-                console.warn("Failed to send verification email:", verificationError);
+                customLogger.warn("Failed to send verification email:", verificationError);
                 notifications.show({
                     id: "verification-email-warning",
                     title: "Email Updated, but Verification Email Failed",
@@ -123,7 +124,7 @@ export function ChangeEmailComponent({
                 onEmailChanged();
             }
         } catch (error) {
-            console.error("Failed to change email:", error);
+            customLogger.error("Failed to change email:", error);
             const errorMessage = error instanceof Error ? error.message : "Failed to change email. Please try again.";
             notifications.show({
                 id: "change-email-error",

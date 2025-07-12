@@ -11,6 +11,7 @@ import { motion, useAnimation } from "motion/react";
 import { useRouter } from "next/navigation";
 
 import classes from "@/components/ForgotPasswordComponent/ForgotPasswordComponent.module.css";
+import { customLogger } from "@/lib/api/customLogger";
 
 interface ForgotPasswordValues {
     username: string;
@@ -37,7 +38,7 @@ export function ForgotPasswordComponent(): React.ReactElement {
      * @return {Promise<void>} A promise that resolves when the recovery link is sent.
      */
     const sendRecoveryLink = async (values: ForgotPasswordValues): Promise<void> => {
-        console.debug("Sending recovery email for user", {
+        customLogger.debug("Sending recovery email for user", {
             username: values.username,
             email: values.email,
         });
@@ -127,7 +128,7 @@ export function ForgotPasswordComponent(): React.ReactElement {
                 buttonStateHandler.close();
             }
         } catch (error) {
-            console.error("Unexpected error sending recovery email:", error);
+            customLogger.error("Unexpected error sending recovery email:", error);
             if (error instanceof Error) {
                 notifications.show({
                     id: "forgot-password-error",
@@ -149,7 +150,7 @@ export function ForgotPasswordComponent(): React.ReactElement {
         }
     };
 
-    console.debug("Returning ForgotPasswordComponent");
+    customLogger.debug("Returning ForgotPasswordComponent");
     return (
         <div>
             {/* Before the request is sent, show the form */}

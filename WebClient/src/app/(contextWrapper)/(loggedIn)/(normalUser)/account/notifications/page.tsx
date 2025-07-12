@@ -6,6 +6,7 @@ import {
     archiveNotificationV1NotificationsPost,
     getUserNotificationsV1NotificationsMeGet,
 } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { notificationIcons } from "@/lib/info";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import {
@@ -67,7 +68,7 @@ export default function NotificationsPage() {
             const data = result.data as Notification[];
             setAllNotifications(data);
         } catch (error) {
-            console.error("Failed to fetch notifications:", error);
+            customLogger.error("Failed to fetch notifications:", error);
         } finally {
             setLoading(false);
         }

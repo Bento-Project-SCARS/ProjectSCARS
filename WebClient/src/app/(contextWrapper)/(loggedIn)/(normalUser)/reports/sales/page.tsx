@@ -2,7 +2,9 @@
 
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
 import { SplitButton } from "@/components/SplitButton/SplitButton";
+import { SubmitForReviewButton } from "@/components/SubmitForReview";
 import * as csclient from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { useUser } from "@/lib/providers/user";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -71,6 +73,9 @@ function SalesandPurchasesContent() {
     const [approvalConfirmed, setApprovalConfirmed] = useState(false);
     const [approvalCheckbox, setApprovalCheckbox] = useState(false);
 
+    // Report status state
+    const [reportStatus, setReportStatus] = useState<string | null>(null);
+
     const [schoolData, setSchoolData] = useState<csclient.School | null>(null);
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [pdfModalOpened, setPdfModalOpened] = useState(false);
@@ -130,6 +135,10 @@ function SalesandPurchasesContent() {
 
                 if (reportRes?.data) {
                     const report = reportRes.data as csclient.DailyFinancialReport;
+
+                    // Set the report status
+                    setReportStatus(report.reportStatus || null);
+
                     // Set the prepared by from the report (get user name from user ID)
                     if (report.preparedBy) {
                         // Find the user in schoolUsers to get their name
@@ -149,7 +158,7 @@ function SalesandPurchasesContent() {
                                         setPreparedBySignatureUrl(signatureUrl);
                                     }
                                 } catch (error) {
-                                    console.error("Failed to load prepared by user signature:", error);
+                                    customLogger.error("Failed to load prepared by user signature:", error);
                                 }
                             }
                         } else {
@@ -170,7 +179,10 @@ function SalesandPurchasesContent() {
                                             setPreparedBySignatureUrl(signatureUrl);
                                         }
                                     } catch (error) {
-                                        console.error("Failed to load current user signature for preparedBy:", error);
+                                        customLogger.error(
+                                            "Failed to load current user signature for preparedBy:",
+                                            error
+                                        );
                                     }
                                 }
                             }
@@ -185,7 +197,7 @@ function SalesandPurchasesContent() {
                             setNotedBy(notedByName);
                             setSelectedNotedByUser(notedByUser);
                             // Load the notedBy user's signature if they have approved the report
-                            if (notedByUser.signatureUrn) {
+                            if (notedByUser.signatureUrn && report.reportStatus === "approved") {
                                 try {
                                     const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
                                         query: { fn: notedByUser.signatureUrn },
@@ -196,7 +208,7 @@ function SalesandPurchasesContent() {
                                         setApprovalConfirmed(true); // Mark as approved since we loaded their signature
                                     }
                                 } catch (error) {
-                                    console.error("Failed to load noted by user signature:", error);
+                                    customLogger.error("Failed to load noted by user signature:", error);
                                 }
                             }
                         } else {
@@ -210,7 +222,7 @@ function SalesandPurchasesContent() {
                                 if (currentUser) {
                                     setSelectedNotedByUser(currentUser);
                                     // Load current user's signature for notedBy if available
-                                    if (currentUser.signatureUrn) {
+                                    if (currentUser.signatureUrn && report.reportStatus === "approved") {
                                         try {
                                             const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet(
                                                 {
@@ -223,7 +235,10 @@ function SalesandPurchasesContent() {
                                                 setApprovalConfirmed(true); // Mark as approved since we loaded their signature
                                             }
                                         } catch (error) {
-                                            console.error("Failed to load current user signature for notedBy:", error);
+                                            customLogger.error(
+                                                "Failed to load current user signature for notedBy:",
+                                                error
+                                            );
                                         }
                                     }
                                 }
@@ -233,7 +248,7 @@ function SalesandPurchasesContent() {
                 }
             } catch {
                 // If report doesn't exist yet, that's fine - we'll create it later
-                console.debug("Daily report not found, will create new one");
+                customLogger.debug("Daily report not found, will create new one");
             }
         };
 
@@ -271,7 +286,7 @@ function SalesandPurchasesContent() {
                         setSchoolUsers(response.data);
                     }
                 } catch (error) {
-                    console.error("Failed to load school users:", error);
+                    customLogger.error("Failed to load school users:", error);
                     notifications.show({
                         title: "Error",
                         message: "Failed to load users from your school.",
@@ -311,7 +326,7 @@ function SalesandPurchasesContent() {
                             setPreparedBySignatureUrl(signatureUrl);
                         }
                     } catch (error) {
-                        console.error("Failed to load user signature:", error);
+                        customLogger.error("Failed to load user signature:", error);
                     }
                 }
             }
@@ -334,8 +349,8 @@ function SalesandPurchasesContent() {
                 if (matchingUser) {
                     setSelectedNotedByUser(matchingUser);
 
-                    // Load the user's signature if available
-                    if (matchingUser.signatureUrn) {
+                    // Load the user's signature if available and report is approved
+                    if (matchingUser.signatureUrn && reportStatus === "approved") {
                         try {
                             const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
                                 query: { fn: matchingUser.signatureUrn },
@@ -344,9 +359,10 @@ function SalesandPurchasesContent() {
                             if (response.data) {
                                 const signatureUrl = URL.createObjectURL(response.data as Blob);
                                 setNotedBySignatureUrl(signatureUrl);
+                                setApprovalConfirmed(true);
                             }
                         } catch (error) {
-                            console.error("Failed to load noted by user signature:", error);
+                            customLogger.error("Failed to load noted by user signature:", error);
                         }
                     }
                 }
@@ -354,7 +370,7 @@ function SalesandPurchasesContent() {
         };
 
         loadNotedBySignature();
-    }, [notedBy, selectedNotedByUser, schoolUsers]);
+    }, [notedBy, selectedNotedByUser, schoolUsers, reportStatus]);
 
     useEffect(() => {
         const loadSchoolData = async () => {
@@ -440,7 +456,7 @@ function SalesandPurchasesContent() {
                 setApprovalConfirmed(true);
             }
         } catch (error) {
-            console.error("Failed to load noted by user signature:", error);
+            customLogger.error("Failed to load noted by user signature:", error);
             notifications.show({
                 title: "Error",
                 message: "Failed to load signature.",
@@ -548,11 +564,11 @@ function SalesandPurchasesContent() {
             }));
             setDailyEntries(mapped);
             setOriginalEntries(mapped);
-            notifications.show({
-                title: "Success",
-                message: "Entry saved successfully.",
-                color: "green",
-            });
+            // notifications.show({
+            //     title: "Success",
+            //     message: "Entry saved successfully.",
+            //     color: "green",
+            // });
         } catch (err: unknown) {
             if (err instanceof Error && err.message.includes("404 Not Found")) {
                 return;
@@ -612,7 +628,7 @@ function SalesandPurchasesContent() {
             if (err instanceof Error && err.message.includes("404")) {
                 return;
             }
-            console.error(err instanceof Error ? err.message : err);
+            customLogger.error(err instanceof Error ? err.message : String(err));
             notifications.show({
                 title: "Error",
                 message: "Failed to delete entry.",
@@ -770,14 +786,16 @@ function SalesandPurchasesContent() {
                         setPreparedBySignatureUrl(signatureUrl);
                     }
                 } catch (error) {
-                    console.error("Failed to load current user signature for preparedBy:", error);
+                    customLogger.error("Failed to load current user signature for preparedBy:", error);
                 }
             }
+
+            router.push("/reports");
         } catch (err: unknown) {
             if (err instanceof Error && err.message.includes("404 Not Found")) {
                 return;
             }
-            console.error(err instanceof Error ? err.message : err);
+            customLogger.error(err instanceof Error ? err.message : String(err));
             notifications.show({
                 title: "Error",
                 message: "Failed to submit entries.",
@@ -1091,7 +1109,7 @@ function SalesandPurchasesContent() {
                                 justifyContent: "center",
                             }}
                         >
-                            {notedBySignatureUrl && approvalConfirmed ? (
+                            {notedBySignatureUrl && approvalConfirmed && reportStatus === "approved" ? (
                                 <Image
                                     src={notedBySignatureUrl}
                                     alt="Noted by signature"
@@ -1423,10 +1441,16 @@ function SalesandPurchasesContent() {
                                     </Text>
                                     <Badge
                                         size="sm"
-                                        color={approvalConfirmed ? "green" : selectedNotedByUser ? "yellow" : "gray"}
+                                        color={
+                                            approvalConfirmed && reportStatus === "approved"
+                                                ? "green"
+                                                : selectedNotedByUser
+                                                ? "yellow"
+                                                : "gray"
+                                        }
                                         variant="light"
                                     >
-                                        {approvalConfirmed
+                                        {approvalConfirmed && reportStatus === "approved"
                                             ? "Approved"
                                             : selectedNotedByUser
                                             ? "Pending Approval"
@@ -1456,7 +1480,7 @@ function SalesandPurchasesContent() {
                                     overflow: "hidden",
                                 }}
                             >
-                                {notedBySignatureUrl && approvalConfirmed ? (
+                                {notedBySignatureUrl && approvalConfirmed && reportStatus === "approved" ? (
                                     <Image
                                         src={notedBySignatureUrl}
                                         alt="Noted by signature"
@@ -1501,6 +1525,22 @@ function SalesandPurchasesContent() {
 
                 {/* Action Buttons */}
                 <Group justify="flex-end" gap="md">
+                    <SubmitForReviewButton
+                        reportType="daily"
+                        reportPeriod={{
+                            schoolId: userCtx.userInfo?.schoolId || 0,
+                            year: currentMonth.getFullYear(),
+                            month: currentMonth.getMonth() + 1,
+                        }}
+                        onSuccess={() => {
+                            // Optionally refresh data or update UI after successful submission
+                            notifications.show({
+                                title: "Status Updated",
+                                message: "Report status has been updated to 'Review'.",
+                                color: "green",
+                            });
+                        }}
+                    />
                     <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100 hide-in-pdf">
                         Cancel
                     </Button>

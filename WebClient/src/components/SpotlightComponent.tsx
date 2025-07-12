@@ -1,3 +1,4 @@
+import { customLogger } from "@/lib/api/customLogger";
 import { Button, Flex } from "@mantine/core";
 import { Spotlight, SpotlightActionData, spotlight } from "@mantine/spotlight";
 import { IconDashboard, IconFileText, IconHome, IconSearch } from "@tabler/icons-react";
@@ -7,21 +8,21 @@ const actions: SpotlightActionData[] = [
         id: "home",
         label: "Home",
         description: "Get to home page",
-        onClick: () => console.log("Home"),
+        onClick: () => customLogger.log("Home"),
         leftSection: <IconHome size={24} stroke={1.5} />,
     },
     {
         id: "dashboard",
         label: "Dashboard",
         description: "Get full information about current system status",
-        onClick: () => console.log("Dashboard"),
+        onClick: () => customLogger.log("Dashboard"),
         leftSection: <IconDashboard size={24} stroke={1.5} />,
     },
     {
         id: "documentation",
         label: "Documentation",
         description: "Visit documentation to learn more about all features",
-        onClick: () => console.log("Documentation"),
+        onClick: () => customLogger.log("Documentation"),
         leftSection: <IconFileText size={24} stroke={1.5} />,
     },
 ];

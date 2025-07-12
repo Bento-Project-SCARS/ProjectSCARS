@@ -6,6 +6,7 @@ import {
 } from "@/lib/api/csclient";
 import { createContext, ReactNode, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/lib/providers/auth";
+import { customLogger } from "@/lib/api/customLogger";
 
 interface UserContextType {
     userInfo: UserPublic | null;
@@ -57,7 +58,7 @@ export function UserProvider({ children }: UserProviderProps): ReactNode {
                         return URL.createObjectURL(avatarBlob);
                     });
                 } catch (error) {
-                    console.error("Failed to decode user avatar:", error);
+                    customLogger.error("Failed to decode user avatar:", error);
                 }
             }
         };
@@ -72,7 +73,7 @@ export function UserProvider({ children }: UserProviderProps): ReactNode {
      * @param {Blob | null} userAvatar - The user avatar to set, if available.
      */
     const updateUserInfo = (userInfo: UserPublic, permissions?: string[] | null, userAvatar?: Blob | null) => {
-        console.debug("Setting user info", { userInfo, permissions, userAvatar });
+        customLogger.debug("Setting user info", { userInfo, permissions, userAvatar });
         setUserInfo(userInfo);
         localStorage.setItem(LocalStorage.userData, JSON.stringify(userInfo));
 
@@ -141,7 +142,7 @@ export function UserProvider({ children }: UserProviderProps): ReactNode {
                             userAvatar = avatarResult.data as Blob;
                         }
                     } catch (error) {
-                        console.warn("Failed to fetch user avatar:", error);
+                        customLogger.warn("Failed to fetch user avatar:", error);
                     }
                 }
 
@@ -150,7 +151,7 @@ export function UserProvider({ children }: UserProviderProps): ReactNode {
             }
             return false;
         } catch (error) {
-            console.error("Failed to refresh user data:", error);
+            customLogger.error("Failed to refresh user data:", error);
             return false;
         }
     }, []);
@@ -182,13 +183,13 @@ export function UserProvider({ children }: UserProviderProps): ReactNode {
                 const serverLastModified = new Date(fetchedUserInfo.lastModified);
 
                 if (serverLastModified > localLastModified) {
-                    console.info("Server-side user data is newer. Refreshing local data...");
+                    customLogger.info("Server-side user data is newer. Refreshing local data...");
                     return await refreshUserData();
                 }
             }
             return false;
         } catch (error) {
-            console.error("Failed to check for user updates:", error);
+            customLogger.error("Failed to check for user updates:", error);
             return false;
         }
     }, [isAuthenticated, userInfo, refreshUserData]);
@@ -249,11 +250,11 @@ export function UserProvider({ children }: UserProviderProps): ReactNode {
  * @returns {UserContextType} The user context containing the user information and avatar.
  */
 export function useUser(): UserContextType {
-    console.debug("useUser called");
+    customLogger.debug("useUser called");
     const ctx = useContext(UserContext);
     if (!ctx) {
         const errorMessage = "useUser must be used within a UserProvider";
-        console.error(errorMessage);
+        customLogger.error(errorMessage);
         throw new Error(errorMessage);
     }
     return ctx;

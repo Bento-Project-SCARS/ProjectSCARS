@@ -7,13 +7,14 @@ import {
     LiquidationReportResponse,
     MonthlyReport,
 } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 
 export async function GetLocalMonthlyReports(
     schoolId: number,
     offset: number,
     limit: number
 ): Promise<MonthlyReport[]> {
-    console.debug(`GetLocalMonthlyReports: schoolId=${schoolId}, offset=${offset}, limit=${limit}`);
+    customLogger.debug(`GetLocalMonthlyReports: schoolId=${schoolId}, offset=${offset}, limit=${limit}`);
 
     const response = await csclient.getAllSchoolMonthlyReportsV1ReportsMonthlySchoolIdGet({
         path: { school_id: schoolId },
@@ -21,7 +22,7 @@ export async function GetLocalMonthlyReports(
     });
 
     if (!response.data) {
-        console.warn(`No monthly reports found for schoolId=${schoolId}`);
+        customLogger.warn(`No monthly reports found for schoolId=${schoolId}`);
         return [];
     }
 
@@ -33,7 +34,7 @@ export async function GetDailySalesAndPurchasesReport(
     year: number,
     month: number
 ): Promise<DailyFinancialReport | null> {
-    console.debug(`GetDailySalesAndPurchases: schoolId=${schoolId}, year=${year}, month=${month}`);
+    customLogger.debug(`GetDailySalesAndPurchases: schoolId=${schoolId}, year=${year}, month=${month}`);
 
     try {
         const response = await csclient.getSchoolDailyReportV1ReportsDailySchoolIdYearMonthGet({
@@ -41,7 +42,7 @@ export async function GetDailySalesAndPurchasesReport(
         });
 
         if (!response.data) {
-            console.warn(
+            customLogger.warn(
                 `No daily sales and purchases report found for schoolId=${schoolId}, year=${year}, month=${month}`
             );
             return null;
@@ -60,7 +61,7 @@ export async function GetDailySalesAndPurchasesReportEntries(
     year: number,
     month: number
 ): Promise<DailyFinancialReportEntry[]> {
-    console.debug(`GetDailySalesAndPurchasesReportEntries: schoolId=${schoolId}, year=${year}, month=${month}`);
+    customLogger.debug(`GetDailySalesAndPurchasesReportEntries: schoolId=${schoolId}, year=${year}, month=${month}`);
 
     try {
         const response = await csclient.getSchoolDailyReportEntriesV1ReportsDailySchoolIdYearMonthEntriesGet({
@@ -82,7 +83,7 @@ export async function SetDailySalesAndPurchasesReport(
     month: number,
     report: DailyFinancialReport
 ): Promise<DailyFinancialReport> {
-    console.debug(`SetDailySalesAndPurchasesReport: schoolId=${schoolId}, year=${year}, month=${month}`);
+    customLogger.debug(`SetDailySalesAndPurchasesReport: schoolId=${schoolId}, year=${year}, month=${month}`);
 
     const response = await csclient.createSchoolDailyReportV1ReportsDailySchoolIdYearMonthPatch({
         path: { school_id: schoolId, year, month },
@@ -102,7 +103,7 @@ export async function SetDailySalesAndPurchasesReportEntries(
     month: number,
     entries: DailyFinancialReportEntry[]
 ): Promise<void> {
-    console.debug(`SetDailySalesAndPurchasesReportEntries: schoolId=${schoolId}, year=${year}, month=${month}`);
+    customLogger.debug(`SetDailySalesAndPurchasesReportEntries: schoolId=${schoolId}, year=${year}, month=${month}`);
 
     // For each entry, send a PUT request to update the entry for the given day
     await Promise.all(
@@ -123,7 +124,9 @@ export async function GetLiquidationReport(
     month: number,
     category: string
 ): Promise<LiquidationReportResponse | null> {
-    console.debug(`GetLiquidationReport: schoolId=${schoolId}, year=${year}, month=${month}, category=${category}`);
+    customLogger.debug(
+        `GetLiquidationReport: schoolId=${schoolId}, year=${year}, month=${month}, category=${category}`
+    );
 
     try {
         const response = await csclient.getLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryGet({
@@ -146,7 +149,7 @@ export async function GetLiquidationReportEntries(
     month: number,
     category: string
 ): Promise<LiquidationReportEntryData[]> {
-    console.debug(
+    customLogger.debug(
         `GetLiquidationReportEntries: schoolId=${schoolId}, year=${year}, month=${month}, category=${category}`
     );
 
@@ -173,7 +176,7 @@ export async function CreateOrUpdateLiquidationReport(
     category: string,
     reportData: LiquidationReportCreateRequest
 ): Promise<LiquidationReportResponse> {
-    console.debug(
+    customLogger.debug(
         `CreateOrUpdateLiquidationReport: schoolId=${schoolId}, year=${year}, month=${month}, category=${category}`
     );
 
@@ -195,7 +198,9 @@ export async function DeleteLiquidationReport(
     month: number,
     category: string
 ): Promise<void> {
-    console.debug(`DeleteLiquidationReport: schoolId=${schoolId}, year=${year}, month=${month}, category=${category}`);
+    customLogger.debug(
+        `DeleteLiquidationReport: schoolId=${schoolId}, year=${year}, month=${month}, category=${category}`
+    );
 
     await csclient.deleteLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryDelete({
         path: { school_id: schoolId, year, month, category },
@@ -203,7 +208,7 @@ export async function DeleteLiquidationReport(
 }
 
 export async function GetLiquidationCategories(): Promise<Record<string, Record<string, string | boolean>>> {
-    console.debug("GetLiquidationCategories");
+    customLogger.debug("GetLiquidationCategories");
 
     const response = await csclient.getLiquidationCategoriesV1ReportsLiquidationCategoriesGet();
 

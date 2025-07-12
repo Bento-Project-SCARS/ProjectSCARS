@@ -6,13 +6,14 @@ import { GetRefreshToken } from "../utils/token";
 import { JwtToken } from "./csclient";
 import { createClient, createConfig } from "./csclient/client";
 import type { CreateClientConfig } from "./csclient/client.gen";
+import { customLogger } from "@/lib/api/customLogger";
 
 const methods = ["get", "post", "put", "head", "delete", "options", "trace", "patch"];
 const statusCodes = [401, 403, 408, 413, 429, 500, 502, 503, 504];
 
 const logRequest = (request: KyRequest) => {
     // Add any global headers or authentication here
-    console.log(`🚀 Making request to: ${request.url}`);
+    customLogger.log(`🚀 Making request to: ${request.url}`);
 
     // Always set the latest access token from localStorage
     const accessTokenData = localStorage.getItem(LocalStorage.accessToken);
@@ -23,17 +24,17 @@ const logRequest = (request: KyRequest) => {
                 request.headers.set("Authorization", `Bearer ${tokenObj.access_token}`);
             }
         } catch (error) {
-            console.warn("Failed to parse access token from localStorage:", error);
+            customLogger.warn("Failed to parse access token from localStorage:", error);
         }
     }
 };
 const logRequestComplete = (request: KyRequest, options: NormalizedOptions, response: KyResponse) => {
     // Log successful responses
-    console.log(`✅ Request to ${request.url} completed with status: ${response.status}`);
+    customLogger.log(`✅ Request to ${request.url} completed with status: ${response.status}`);
 };
 const logError = (error: HTTPError) => {
     // Log errors with more context
-    console.error(`❌ Request failed:`, error);
+    customLogger.error(`❌ Request failed:`, error);
     return error;
 };
 const retryRequest = async ({
@@ -45,12 +46,12 @@ const retryRequest = async ({
     error: Error;
     retryCount: number;
 }) => {
-    console.log(`🔄 Retrying request (attempt ${retryCount + 1}):`, request.url);
+    customLogger.log(`🔄 Retrying request (attempt ${retryCount + 1}):`, request.url);
 
     // Handle token refresh on 401 errors
     if (error instanceof HTTPError && error.response.status === 401) {
         // if (retryCount > 0) {
-        //     console.warn("🚫 Multiple 401 errors, stopping retry attempts");
+        //     customLogger.warn("🚫 Multiple 401 errors, stopping retry attempts");
         //     performLogout(true);
         //     throw new AuthenticationError("Multiple authentication failures - user logged out");
         // }
@@ -58,22 +59,22 @@ const retryRequest = async ({
         // Check if user is logged in before attempting token refresh
         const userData = localStorage.getItem(LocalStorage.userData);
         if (!userData) {
-            console.warn("🚪 User not logged in, skipping token refresh...");
+            customLogger.warn("🚪 User not logged in, skipping token refresh...");
             // throw new AuthenticationError("User is not logged in");
             return; // Skip refresh if user is not logged in
         }
         try {
-            console.warn("🔑 Unauthorized request, attempting to refresh token...");
+            customLogger.warn("🔑 Unauthorized request, attempting to refresh token...");
 
             // Attempt to refresh token using the proper utility function
             const refreshToken = GetRefreshToken();
             if (!refreshToken) {
-                console.warn("🚪 No refresh token available, logging out user...");
+                customLogger.warn("🚪 No refresh token available, logging out user...");
                 performLogout(true); // Redirect to login page
                 throw new AuthenticationError("No refresh token available - user logged out");
             }
 
-            console.debug("🔄 Found refresh token, calling refresh endpoint...");
+            customLogger.debug("🔄 Found refresh token, calling refresh endpoint...");
             try {
                 const tokenResponse = await tokenRefreshClient
                     .post("v1/auth/refresh", {
@@ -84,16 +85,16 @@ const retryRequest = async ({
                 localStorage.setItem(LocalStorage.accessToken, JSON.stringify(tokenResponse));
                 request.headers.set("Authorization", `Bearer ${tokenResponse.access_token}`);
 
-                console.log("✅ Token refreshed successfully, retrying original request");
+                customLogger.log("✅ Token refreshed successfully, retrying original request");
             } catch (refreshError) {
-                console.error("❌ Failed to refresh token:", refreshError);
-                console.warn("🚪 Token refresh failed, logging out user...");
+                customLogger.error("❌ Failed to refresh token:", refreshError);
+                customLogger.warn("🚪 Token refresh failed, logging out user...");
                 performLogout(true); // Redirect to login page
                 throw new AuthenticationError("Token refresh failed - user logged out");
             }
         } catch (refreshError) {
-            console.error("❌ Failed to refresh token:", refreshError);
-            console.warn("🚪 Token refresh failed, logging out user...");
+            customLogger.error("❌ Failed to refresh token:", refreshError);
+            customLogger.warn("🚪 Token refresh failed, logging out user...");
             performLogout(true); // Redirect to login page
             throw new AuthenticationError("Token refresh failed - user logged out");
         }

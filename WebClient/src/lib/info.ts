@@ -24,9 +24,10 @@ export const LocalStorage = {
     accessToken: "at",
     userData: "ud",
     userPermissions: "up",
-    userAvatar: "ua",
-    userPreferences: "upref",
+    userAvatar: "userAvatar",
+    userPreferences: "userPrefs",
     setupCompleteDismissed: "setupCompleteDismissed",
+    useBasicLoader: "useBasicLoader",
 };
 
 export const randomLoadingMessages: string[] = [

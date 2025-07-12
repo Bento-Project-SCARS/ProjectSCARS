@@ -57,13 +57,14 @@ class Debug:
 class Connection:
     """The connection configuration."""
 
-    __exportable_fields = ["host", "port", "base_url"]
+    __exportable_fields = ["host", "port", "base_url", "gemini_api_key"]
 
     def __init__(
         self,
         host: str | None = None,
         port: int | None = None,
         base_url: str | None = None,
+        gemini_api_key: str | None = None,
     ):
         """Create a configuration object for the connection.
 
@@ -74,11 +75,13 @@ class Connection:
             host: Where to listen for incoming connections.
             port: Which port to listen on for incoming connections.
             base_url: The base URL of the web client.
+            gemini_api_key: The API key for Google Gemini API. (Optional)
         """
 
         self.host: str = host or "localhost"
         self.port: int = port or 8081
         self.base_url: str = base_url or "http://localhost:8080"
+        self.gemini_api_key: str | None = gemini_api_key
 
     def export(self) -> dict[str, Any]:
         """Export the connection configuration as a dictionary."""
@@ -614,6 +617,7 @@ def read_config(
             host=host or connection_config.get("host", None),
             port=port or connection_config.get("port", None),
             base_url=connection_config.get("base_url", None),
+            gemini_api_key=connection_config.get("gemini_api_key", None),
         ),
         logging=Logging(
             file_logging_enabled=logging_config.get("file_logging_enabled", None),

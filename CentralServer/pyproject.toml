@@ -8,6 +8,7 @@ dependencies = [
     "concurrent-log-handler>=0.9.28",
     "fastapi[standard]>=0.115.12",
     "jinja2>=3.1.6",
+    "llm>=0.26",
     "minio>=7.2.15",
     "passlib[argon2]>=1.7.4",
     "pillow>=11.2.1",
@@ -20,6 +21,9 @@ dependencies = [
     "types-pillow>=10.2.0.20240822",
     "uvicorn>=0.34.0",
 ]
+
+[project.optional-dependencies]
+ai = ["llm-gemini>=0.1.0"]
 
 [dependency-groups]
 dev = [

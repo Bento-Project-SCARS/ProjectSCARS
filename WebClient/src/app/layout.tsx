@@ -2,7 +2,7 @@
 import { ReactScan } from "@/components/dev/ReactScan";
 
 import { Program } from "@/lib/info";
-import { theme } from "@/lib/theme";
+import { theme, defaultColorscheme, notificationLimit, notificationAutoClose } from "@/lib/theme";
 import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import type { Metadata } from "next";
@@ -39,9 +39,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
             </head>
             <body>
                 <ReactScan />
-                <MantineProvider theme={theme} defaultColorScheme="auto">
+                <MantineProvider theme={theme} defaultColorScheme={defaultColorscheme}>
                     {children}
-                    <Notifications limit={5} autoClose={5000} />
+                    <Notifications limit={notificationLimit} autoClose={notificationAutoClose} />
                 </MantineProvider>
             </body>
         </html>

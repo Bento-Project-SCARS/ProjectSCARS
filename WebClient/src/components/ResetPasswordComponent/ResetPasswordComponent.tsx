@@ -14,6 +14,7 @@ import { Suspense, useEffect, useState } from "react";
 
 import { getStrength, PasswordRequirement, requirements } from "@/components/Password";
 import classes from "@/components/ResetPasswordComponent/ResetPasswordComponent.module.css";
+import { customLogger } from "@/lib/api/customLogger";
 
 interface ResetPasswordValues {
     new_password: string;
@@ -48,7 +49,7 @@ function ResetPasswordContent(): React.ReactElement {
      * @return {Promise<void>} A promise that resolves when the password is reset.
      */
     const resetPassword = async (values: ResetPasswordValues): Promise<void> => {
-        console.debug("Resetting password");
+        customLogger.debug("Resetting password");
         buttonStateHandler.open();
         if (!values.new_password) {
             notifications.show({
@@ -83,7 +84,7 @@ function ResetPasswordContent(): React.ReactElement {
             });
 
             if (result.error) {
-                console.error(result.response.status, result.response.statusText);
+                customLogger.error(result.response.status, result.response.statusText);
                 notifications.show({
                     id: "reset-password-failure",
                     title: "Password reset failed",
@@ -130,7 +131,7 @@ function ResetPasswordContent(): React.ReactElement {
                     icon: <IconX />,
                 });
             } else {
-                console.error("Error resetting password:", error);
+                customLogger.error("Error resetting password:", error);
                 notifications.show({
                     id: "reset-password-error",
                     title: "Password reset failed",
@@ -148,7 +149,7 @@ function ResetPasswordContent(): React.ReactElement {
         setToken(searchParams?.get("token"));
     }, [searchParams]);
 
-    console.debug("Returning ForgotPasswordComponent");
+    customLogger.debug("Returning ForgotPasswordComponent");
     return (
         <div>
             {/* Before the request is sent, show the form */}

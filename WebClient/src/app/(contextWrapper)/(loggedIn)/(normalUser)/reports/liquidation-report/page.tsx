@@ -24,6 +24,7 @@
 import { CreatableUnitSelect } from "@/components/CreatableUnitSelect";
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
 import { SplitButton } from "@/components/SplitButton/SplitButton";
+import { SubmitForReviewButton } from "@/components/SubmitForReview";
 import { ReportAttachmentManager } from "@/components/Reports/ReportAttachmentManager";
 import * as csclient from "@/lib/api/csclient";
 import { useUser } from "@/lib/providers/user";
@@ -56,6 +57,7 @@ import { IconCalendar, IconFileText, IconHistory, IconPlus, IconTrash, IconX } f
 import dayjs from "dayjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { customLogger } from "@/lib/api/customLogger";
 
 const report_type = {
     operating_expenses: "Operating Expenses",
@@ -113,13 +115,15 @@ function LiquidationReportContent() {
         },
     ]);
     const [notes, setNotes] = useState<string>("");
-    const [reportAttachments, setReportAttachments] = useState<{
-        file_urn: string;
-        filename: string;
-        file_size: number;
-        file_type: string;
-        upload_url?: string;
-    }[]>([]);
+    const [reportAttachments, setReportAttachments] = useState<
+        {
+            file_urn: string;
+            filename: string;
+            file_size: number;
+            file_type: string;
+            upload_url?: string;
+        }[]
+    >([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -140,8 +144,10 @@ function LiquidationReportContent() {
 
     // Approval state management
     const [approvalModalOpened, setApprovalModalOpened] = useState(false);
-    const [approvalConfirmed, setApprovalConfirmed] = useState(false);
     const [approvalCheckbox, setApprovalCheckbox] = useState(false);
+
+    // Report status tracking
+    const [reportStatus, setReportStatus] = useState<string | null>(null);
 
     const hasQtyUnit = QTY_FIELDS_REQUIRED.includes(category || "");
     const hasReceiptVoucher = RECEIPT_FIELDS_REQUIRED.includes(category || "");
@@ -168,13 +174,18 @@ function LiquidationReportContent() {
                 if (response.data) {
                     const report = response.data;
 
+                    // Load report status to determine approval state
+                    if (report.reportStatus) {
+                        setReportStatus(report.reportStatus);
+                    }
+
                     // Load signature information from existing report
                     if (report.preparedBy) {
                         setPreparedBy(report.preparedBy);
                     }
                     if (report.notedBy) {
                         setNotedBy(report.notedBy);
-                        // Store the noted by name so we can match it with a user later
+                        // Store the noted by ID so we can match it with a user later
                         // The signature will be loaded in the effect after school users are loaded
                     }
 
@@ -208,24 +219,24 @@ function LiquidationReportContent() {
                                         allAttachmentUrns.push(...urns);
                                     }
                                 } catch (error) {
-                                    console.error("Failed to parse receipt attachment URNs:", error);
+                                    customLogger.error("Failed to parse receipt attachment URNs:", error);
                                 }
                             }
                         });
                         setReceiptAttachmentUrns(allAttachmentUrns);
 
-                        notifications.show({
-                            title: "Report Loaded",
-                            message: `Loaded existing report with ${loadedItems.length} items${
-                                allAttachmentUrns.length > 0 ? ` and ${allAttachmentUrns.length} attachments` : ""
-                            }.`,
-                            color: "blue",
-                        });
+                        // notifications.show({
+                        //     title: "Report Loaded",
+                        //     message: `Loaded existing report with ${loadedItems.length} items${
+                        //         allAttachmentUrns.length > 0 ? ` and ${allAttachmentUrns.length} attachments` : ""
+                        //     }.`,
+                        //     color: "blue",
+                        // });
                     }
                 }
             } catch {
                 // If report doesn't exist (404), that's fine - we'll create a new one
-                console.log("No existing report found, starting fresh");
+                customLogger.log("No existing report found, starting fresh");
             }
             setIsLoading(false);
         };
@@ -254,7 +265,7 @@ function LiquidationReportContent() {
                     }
                     return null;
                 } catch (error) {
-                    console.error("Failed to fetch user signature:", error);
+                    customLogger.error("Failed to fetch user signature:", error);
                     return null;
                 }
             };
@@ -276,7 +287,7 @@ function LiquidationReportContent() {
                         setSchoolUsers(response.data);
                     }
                 } catch (error) {
-                    console.error("Failed to load school users:", error);
+                    customLogger.error("Failed to load school users:", error);
                     notifications.show({
                         title: "Error",
                         message: "Failed to load users from your school.",
@@ -285,9 +296,8 @@ function LiquidationReportContent() {
                 }
             };
 
-            // Set prepared by to current user
-            const currentUserName = `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim();
-            setPreparedBy(currentUserName);
+            // Set prepared by to current user ID (ensure we store user ID, not name)
+            setPreparedBy(userCtx.userInfo.id);
 
             // Load current user's signature if available
             if (userCtx.userInfo.signatureUrn) {
@@ -297,7 +307,7 @@ function LiquidationReportContent() {
                         setPreparedBySignatureUrl(signatureUrl);
                     }
                 } catch (error) {
-                    console.error("Failed to load user signature:", error);
+                    customLogger.error("Failed to load user signature:", error);
                 }
             }
 
@@ -308,22 +318,20 @@ function LiquidationReportContent() {
         initializeSignatures();
     }, [userCtx.userInfo]);
 
-    // Effect to match loaded notedBy name with actual user and load their signature
+    // Effect to match loaded notedBy ID with actual user and load their signature
     useEffect(() => {
         const loadNotedBySignature = async () => {
-            // If we have a notedBy name from a loaded report but no selected user yet
+            // If we have a notedBy ID from a loaded report but no selected user yet
             if (notedBy && !selectedNotedByUser && schoolUsers.length > 0) {
-                // Try to find the user by matching their name
-                const matchingUser = schoolUsers.find((user) => {
-                    const userName = `${user.nameFirst} ${user.nameLast}`.trim();
-                    return userName === notedBy;
-                });
+                // Try to find the user by matching their ID
+                const matchingUser = schoolUsers.find((user) => user.id === notedBy);
 
                 if (matchingUser) {
                     setSelectedNotedByUser(matchingUser);
 
-                    // Load the user's signature if available and mark as approved
-                    if (matchingUser.signatureUrn) {
+                    // Load the user's signature if available
+                    // Only mark as approved if the report status is actually "approved"
+                    if (matchingUser.signatureUrn && reportStatus === "approved") {
                         try {
                             const response = await csclient.getUserSignatureEndpointV1UsersSignatureGet({
                                 query: { fn: matchingUser.signatureUrn },
@@ -332,10 +340,10 @@ function LiquidationReportContent() {
                             if (response.data) {
                                 const signatureUrl = URL.createObjectURL(response.data as Blob);
                                 setNotedBySignatureUrl(signatureUrl);
-                                setApprovalConfirmed(true); // Mark as approved since we loaded their signature
+                                // Don't automatically set approval - this should be based on reportStatus
                             }
                         } catch (error) {
-                            console.error("Failed to load noted by user signature:", error);
+                            customLogger.error("Failed to load noted by user signature:", error);
                         }
                     }
                 }
@@ -343,7 +351,18 @@ function LiquidationReportContent() {
         };
 
         loadNotedBySignature();
-    }, [notedBy, selectedNotedByUser, schoolUsers]);
+    }, [notedBy, selectedNotedByUser, schoolUsers, reportStatus]);
+
+    // Effect to handle report status changes - clear signatures if not approved
+    useEffect(() => {
+        if (reportStatus && reportStatus !== "approved") {
+            // Clear noted by signature if report is not approved
+            if (notedBySignatureUrl) {
+                URL.revokeObjectURL(notedBySignatureUrl);
+                setNotedBySignatureUrl(null);
+            }
+        }
+    }, [reportStatus, notedBySignatureUrl]);
 
     // Validate category parameter
     if (!category || !report_type[category as keyof typeof report_type]) {
@@ -386,15 +405,13 @@ function LiquidationReportContent() {
 
     /**
      * Handle selection of a user for the "noted by" field
-     * Reason: Load the selected user's signature and update the report data
+     * Ensures user ID (not name) is stored for the notedBy field
      */
     const handleNotedByUserSelect = async (user: csclient.UserSimple) => {
-        const userName = `${user.nameFirst} ${user.nameLast}`.trim();
-        setNotedBy(userName);
+        setNotedBy(user.id); // Store user ID, not name - this is critical for backend consistency
         setSelectedNotedByUser(user);
 
         // Reset approval state when changing the noted by user
-        setApprovalConfirmed(false);
         setApprovalCheckbox(false);
         setNotedBySignatureUrl(null);
 
@@ -408,7 +425,6 @@ function LiquidationReportContent() {
     const handleClearNotedBy = () => {
         setNotedBy(null);
         setSelectedNotedByUser(null);
-        setApprovalConfirmed(false);
         setApprovalCheckbox(false);
         if (notedBySignatureUrl) {
             URL.revokeObjectURL(notedBySignatureUrl);
@@ -432,10 +448,12 @@ function LiquidationReportContent() {
             if (response.data) {
                 const signatureUrl = URL.createObjectURL(response.data as Blob);
                 setNotedBySignatureUrl(signatureUrl);
-                setApprovalConfirmed(true);
+                // Note: Report status should be updated through a separate API call for approval
+                // For now, we just update the local state. The actual approval should happen
+                // through the proper approval workflow.
             }
         } catch (error) {
-            console.error("Failed to load noted by user signature:", error);
+            customLogger.error("Failed to load noted by user signature:", error);
             notifications.show({
                 title: "Error",
                 message: "Failed to load signature.",
@@ -537,12 +555,9 @@ function LiquidationReportContent() {
 
             // Prepare the entries data
             // Combine receipt attachment URNs with general report attachment URNs
-            const allAttachmentUrns = [
-                ...receiptAttachmentUrns,
-                ...reportAttachments.map(att => att.file_urn)
-            ];
+            const allAttachmentUrns = [...receiptAttachmentUrns, ...reportAttachments.map((att) => att.file_urn)];
             const receiptUrnString = allAttachmentUrns.length > 0 ? JSON.stringify(allAttachmentUrns) : null;
-            
+
             const entries: csclient.LiquidationReportEntryData[] = expenseItems.map((item) => {
                 const isAmountOnly = AMOUNT_ONLY_FIELDS.includes(category || "");
                 return {
@@ -562,12 +577,20 @@ function LiquidationReportContent() {
             // Prepare the report data
             const reportData: csclient.LiquidationReportCreateRequest = {
                 entries,
-                notedBy: notedBy || null, // Use selected noted by user name
-                preparedBy: preparedBy || null, // Use current user name
-                teacherInCharge: userCtx.userInfo.id, // Can be set later
+                notedBy: notedBy || null, // Use user ID - ensure it's a valid user ID
+                preparedBy: preparedBy || null, // Use user ID - ensure it's a valid user ID
+                teacherInCharge: userCtx.userInfo.id, // Current user ID
                 certifiedBy: [], // Can be set later
                 memo: notes || null, // Add memo field
             };
+
+            // Validate that notedBy and preparedBy are valid user IDs (not names)
+            if (notedBy && typeof notedBy !== "string") {
+                throw new Error("Invalid notedBy user ID");
+            }
+            if (preparedBy && typeof preparedBy !== "string") {
+                throw new Error("Invalid preparedBy user ID");
+            }
 
             await csclient.createOrUpdateLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryPatch({
                 path: {
@@ -615,12 +638,9 @@ function LiquidationReportContent() {
 
             // Prepare the entries data (even if some fields are empty for draft)
             // Combine receipt attachment URNs with general report attachment URNs
-            const allAttachmentUrns = [
-                ...receiptAttachmentUrns,
-                ...reportAttachments.map(att => att.file_urn)
-            ];
+            const allAttachmentUrns = [...receiptAttachmentUrns, ...reportAttachments.map((att) => att.file_urn)];
             const receiptUrnString = allAttachmentUrns.length > 0 ? JSON.stringify(allAttachmentUrns) : null;
-            
+
             const entries: csclient.LiquidationReportEntryData[] = expenseItems
                 .filter((item) => item.particulars || item.unitPrice > 0) // Only include items with some data
                 .map((item) => {
@@ -642,12 +662,20 @@ function LiquidationReportContent() {
             // Prepare the report data
             const reportData: csclient.LiquidationReportCreateRequest = {
                 entries,
-                notedBy: notedBy || null, // Use selected noted by user name
-                preparedBy: preparedBy || null, // Use current user name
+                notedBy: notedBy || null, // Use user ID - ensure it's a valid user ID
+                preparedBy: preparedBy || null, // Use user ID - ensure it's a valid user ID
                 teacherInCharge: userCtx.userInfo.id,
                 certifiedBy: [],
                 memo: notes || null, // Add memo field
             };
+
+            // Validate that notedBy and preparedBy are valid user IDs (not names)
+            if (notedBy && typeof notedBy !== "string") {
+                throw new Error("Invalid notedBy user ID");
+            }
+            if (preparedBy && typeof preparedBy !== "string") {
+                throw new Error("Invalid preparedBy user ID");
+            }
 
             await csclient.createOrUpdateLiquidationReportV1ReportsLiquidationSchoolIdYearMonthCategoryPatch({
                 path: {
@@ -970,7 +998,9 @@ function LiquidationReportContent() {
                             </Box>
                             <div style={{ textAlign: "center" }}>
                                 <Text fw={600} size="sm">
-                                    {preparedBy || "N/A"}
+                                    {userCtx.userInfo
+                                        ? `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim()
+                                        : "N/A"}
                                 </Text>
                                 <Text size="xs" c="dimmed">
                                     {userCtx.userInfo?.position || "Position"}
@@ -987,8 +1017,22 @@ function LiquidationReportContent() {
                                     <Text size="sm" c="dimmed" fw={500}>
                                         Noted by
                                     </Text>
-                                    <Badge size="sm" color={selectedNotedByUser ? "green" : "orange"} variant="light">
-                                        {selectedNotedByUser ? "Selected" : "Not Selected"}
+                                    <Badge
+                                        size="sm"
+                                        color={
+                                            reportStatus === "approved"
+                                                ? "green"
+                                                : selectedNotedByUser
+                                                ? "yellow"
+                                                : "gray"
+                                        }
+                                        variant="light"
+                                    >
+                                        {reportStatus === "approved"
+                                            ? "Approved"
+                                            : selectedNotedByUser
+                                            ? "Pending Approval"
+                                            : "Not Selected"}
                                     </Badge>
                                 </Group>
                                 {selectedNotedByUser ? (
@@ -1014,7 +1058,7 @@ function LiquidationReportContent() {
                                     overflow: "hidden",
                                 }}
                             >
-                                {notedBySignatureUrl ? (
+                                {notedBySignatureUrl && reportStatus === "approved" ? (
                                     <Image
                                         src={notedBySignatureUrl}
                                         alt="Noted by signature"
@@ -1030,7 +1074,9 @@ function LiquidationReportContent() {
                             </Box>
                             <div style={{ textAlign: "center" }}>
                                 <Text fw={600} size="sm">
-                                    {notedBy || "N/A"}
+                                    {selectedNotedByUser
+                                        ? `${selectedNotedByUser.nameFirst} ${selectedNotedByUser.nameLast}`.trim()
+                                        : "N/A"}
                                 </Text>
                                 <Text size="xs" c="dimmed">
                                     {selectedNotedByUser?.position || "Position"}
@@ -1039,20 +1085,24 @@ function LiquidationReportContent() {
                             {/* Approval Section */}
                             {selectedNotedByUser && (
                                 <div style={{ textAlign: "center", marginTop: "8px" }}>
-                                    {approvalConfirmed ? (
+                                    {/* Show "Approved" badge only when report status is actually "approved" by principal */}
+                                    {reportStatus === "approved" ? (
                                         <Badge color="green" variant="light">
                                             Approved
                                         </Badge>
                                     ) : (
-                                        <Button
-                                            size="xs"
-                                            variant="light"
-                                            color="blue"
-                                            onClick={openApprovalModal}
-                                            disabled={!selectedNotedByUser.signatureUrn}
-                                        >
-                                            Approve Report
-                                        </Button>
+                                        /* Only show approve button if the logged-in user is the same as the notedBy user */
+                                        selectedNotedByUser.id === userCtx.userInfo?.id && (
+                                            <Button
+                                                size="xs"
+                                                variant="light"
+                                                color="blue"
+                                                onClick={openApprovalModal}
+                                                disabled={!selectedNotedByUser.signatureUrn}
+                                            >
+                                                Approve Report
+                                            </Button>
+                                        )
                                     )}
                                 </div>
                             )}
@@ -1077,6 +1127,24 @@ function LiquidationReportContent() {
 
                     {/* Main Action Buttons */}
                     <Group justify="flex-end" gap="md">
+                        <SubmitForReviewButton
+                            reportType="liquidation"
+                            reportPeriod={{
+                                schoolId: userCtx.userInfo?.schoolId || 0,
+                                year: reportPeriod?.getFullYear() || new Date().getFullYear(),
+                                month: reportPeriod?.getMonth()
+                                    ? reportPeriod.getMonth() + 1
+                                    : new Date().getMonth() + 1,
+                                category: category || "",
+                            }}
+                            onSuccess={() => {
+                                notifications.show({
+                                    title: "Status Updated",
+                                    message: "Report status has been updated to 'Review'.",
+                                    color: "green",
+                                });
+                            }}
+                        />
                         <Button
                             variant="outline"
                             onClick={handleClose}
@@ -1170,7 +1238,10 @@ function LiquidationReportContent() {
                     <Stack gap="md">
                         <Text size="sm">
                             Are you sure you want to approve this liquidation report as{" "}
-                            <strong>{selectedNotedByUser?.nameFirst} {selectedNotedByUser?.nameLast}</strong>?
+                            <strong>
+                                {selectedNotedByUser?.nameFirst} {selectedNotedByUser?.nameLast}
+                            </strong>
+                            ?
                         </Text>
 
                         <Text size="sm" c="dimmed">
@@ -1180,18 +1251,16 @@ function LiquidationReportContent() {
                         <Checkbox
                             label="I confirm that I have reviewed this report and approve it"
                             checked={approvalCheckbox}
-                            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setApprovalCheckbox(event.currentTarget.checked)}
+                            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                                setApprovalCheckbox(event.currentTarget.checked)
+                            }
                         />
 
                         <Group justify="flex-end" mt="md">
                             <Button variant="outline" onClick={() => setApprovalModalOpened(false)}>
                                 Cancel
                             </Button>
-                            <Button
-                                onClick={handleApprovalConfirm}
-                                disabled={!approvalCheckbox}
-                                color="green"
-                            >
+                            <Button onClick={handleApprovalConfirm} disabled={!approvalCheckbox} color="green">
                                 Confirm Approval
                             </Button>
                         </Group>

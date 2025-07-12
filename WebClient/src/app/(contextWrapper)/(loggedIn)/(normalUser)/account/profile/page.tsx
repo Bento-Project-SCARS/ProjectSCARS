@@ -1,10 +1,10 @@
 "use client";
 
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
-import { ChangeEmailComponent } from "@/components/UserManagement/ChangeEmailComponent";
-import { SignatureCanvas } from "@/components/SignatureCanvas/SignatureCanvas";
-import { UserSyncButton } from "@/components/UserSyncButton";
 import { PasswordRequirement, requirements } from "@/components/Password";
+import { SignatureCanvas } from "@/components/SignatureCanvas/SignatureCanvas";
+import { ChangeEmailComponent } from "@/components/UserManagement/ChangeEmailComponent";
+import { UserSyncButton } from "@/components/UserSyncButton";
 import {
     deleteUserAvatarEndpointV1UsersAvatarDelete,
     deleteUserInfoEndpointV1UsersDelete,
@@ -29,8 +29,10 @@ import {
     verifyEmailV1AuthEmailVerifyPost,
     verifyMfaOtpV1AuthMfaOtpVerifyPost,
 } from "@/lib/api/csclient";
+import { customLogger } from "@/lib/api/customLogger";
 import { GetAllSchools } from "@/lib/api/school";
-import { LocalStorage, userAvatarConfig, userSignatureConfig } from "@/lib/info";
+import { userAvatarConfig, userSignatureConfig } from "@/lib/info";
+import { useThemeContext } from "@/lib/providers/theme";
 import { useUser } from "@/lib/providers/user";
 import { UserPreferences } from "@/lib/types";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
@@ -61,7 +63,7 @@ import {
     useMantineColorScheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useDisclosure, useLocalStorage } from "@mantine/hooks";
+import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
     IconCircleDashedCheck,
@@ -109,15 +111,57 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
     const userCtx = useUser();
     const { SVG } = useQRCode();
     const { setColorScheme, colorScheme } = useMantineColorScheme();
-    const [userPreferences, setUserPreferences] = useLocalStorage<UserPreferences>({
-        key: LocalStorage.userPreferences,
-        defaultValue: {
-            accentColor: "#228be6",
-            language: "English",
-            timezone: "UTC+8 (Philippines)",
+    const { userPreferences, updatePreference } = useThemeContext();
+
+    // Local state for preferences that will be saved when Save button is clicked
+    const [localPreferences, setLocalPreferences] = useState({
+        accentColor: userPreferences.accentColor,
+        language: userPreferences.language,
+    });
+
+    // Sync localPreferences with userPreferences when userPreferences change
+    useEffect(() => {
+        setLocalPreferences({
+            accentColor: userPreferences.accentColor,
+            language: userPreferences.language,
+        });
+    }, [userPreferences]);
+    const form = useForm<EditProfileValues>({
+        mode: "uncontrolled",
+        onValuesChange: () => {
+            // Trigger unsaved changes check when form values change
+            setTimeout(() => {
+                if (!userInfo) return;
+
+                const initialValues = {
+                    id: userInfo.id,
+                    username: userInfo.username || "",
+                    nameFirst: userInfo.nameFirst || "",
+                    nameMiddle: userInfo.nameMiddle || "",
+                    nameLast: userInfo.nameLast || "",
+                    position: userInfo.position || "",
+                    email: userInfo.email || "",
+                    school: availableSchools.find((school) => school.startsWith(`[${userInfo.schoolId}]`)),
+                    role: availableRoles.find((role) => role.startsWith(`[${userInfo.roleId}]`)),
+                    deactivated: userInfo.deactivated,
+                    forceUpdateInfo: userInfo.forceUpdateInfo,
+                };
+
+                const currentValues = form.getValues();
+
+                const hasFormChanges = Object.keys(initialValues).some((key) => {
+                    const initial = initialValues[key as keyof typeof initialValues];
+                    const current = currentValues[key as keyof typeof currentValues];
+                    return initial !== current;
+                });
+
+                const hasFileChanges =
+                    editUserAvatar !== null || avatarRemoved || editUserSignature !== null || signatureRemoved;
+
+                setHasUnsavedChanges(hasFormChanges || hasFileChanges);
+            }, 0);
         },
     });
-    const form = useForm<EditProfileValues>({ mode: "uncontrolled" });
 
     const [opened, modalHandler] = useDisclosure(false);
     const [buttonLoading, buttonStateHandler] = useDisclosure(false);
@@ -169,6 +213,9 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
         facebook: false,
     });
 
+    // Add state for tracking unsaved changes
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
     const SetSelectValue = async (value: string, s: string) => {
         // set x in string "[x] y"
         return `[${value}] ${s}`;
@@ -196,7 +243,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
             setCurrentAvatarUrn(avatarUrn);
             return url;
         } catch (error) {
-            console.error("Failed to fetch user avatar:", error);
+            customLogger.error("Failed to fetch user avatar:", error);
             notifications.show({
                 id: "fetch-user-avatar-error",
                 title: "Error",
@@ -225,7 +272,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
             setCurrentSignatureUrn(signatureUrn);
             return url;
         } catch (error) {
-            console.error("Failed to fetch user signature:", error);
+            customLogger.error("Failed to fetch user signature:", error);
             notifications.show({
                 id: "fetch-user-signature-error",
                 title: "Error",
@@ -238,16 +285,12 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
     };
 
     const handlePreferenceChange = (key: keyof UserPreferences, value: string | boolean | null) => {
-        setUserPreferences((prev) => ({ ...prev, [key]: value }));
-        notifications.show({
-            title: "Preferences Updated",
-            message: "Your preferences have been saved",
-            color: "green",
-        });
+        setLocalPreferences((prev) => ({ ...prev, [key]: value }));
+        // Remove the immediate notification since preferences are saved with main form
     };
     const handleChangeAvatar = async (file: File | null) => {
         if (file === null) {
-            console.debug("No file selected, skipping upload...");
+            customLogger.debug("No file selected, skipping upload...");
             return;
         }
         const fileSizeMB = file.size / (1024 * 1024);
@@ -284,7 +327,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
 
     const handleChangeSignature = async (file: File | null) => {
         if (file === null) {
-            console.debug("No file selected, skipping upload...");
+            customLogger.debug("No file selected, skipping upload...");
             return;
         }
         const fileSizeMB = file.size / (1024 * 1024);
@@ -347,8 +390,8 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
     const handleSave = async (values: EditProfileValues) => {
         buttonStateHandler.open();
         // NOTE: Only update fields that have changed
-        // console.debug("values:", values);
-        // console.debug("userInfo:", userInfo);
+        // customLogger.debug("values:", values);
+        // customLogger.debug("userInfo:", userInfo);
         // Resolve async operations first
         const schoolId = await GetSelectValue(values.school);
         const roleId = await GetSelectValue(values.role);
@@ -383,7 +426,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
             (field, index) => index > 0 && field === true // Skip the id field at index 0
         );
         try {
-            console.debug("Has values to remove:", hasFieldsToDelete);
+            customLogger.debug("Has values to remove:", hasFieldsToDelete);
             if (hasFieldsToDelete) {
                 const deleteResult = await deleteUserInfoEndpointV1UsersDelete({
                     body: fieldsToDelete,
@@ -391,7 +434,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 });
 
                 if (deleteResult.error) {
-                    console.error(
+                    customLogger.error(
                         `Failed to delete user fields: ${deleteResult.response.status} ${deleteResult.response.statusText}`
                     );
                     notifications.show({
@@ -436,7 +479,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
 
             if (avatarRemoved && currentAvatarUrn) {
                 try {
-                    console.debug("Removing avatar...");
+                    customLogger.debug("Removing avatar...");
                     const deleteResult = await deleteUserAvatarEndpointV1UsersAvatarDelete({
                         query: { user_id: values.id },
                         headers: { Authorization: GetAccessTokenHeader() },
@@ -448,7 +491,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                         );
                     }
 
-                    console.debug("Avatar removed successfully.");
+                    customLogger.debug("Avatar removed successfully.");
                     notifications.show({
                         id: "avatar-remove-success",
                         title: "Success",
@@ -459,7 +502,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 } catch (error) {
                     if (error instanceof Error) {
                         const detail = error.message || "Failed to remove avatar.";
-                        console.error("Avatar removal failed:", detail);
+                        customLogger.error("Avatar removal failed:", detail);
                         notifications.show({
                             id: "avatar-remove-error",
                             title: "Avatar Removal Failed",
@@ -472,7 +515,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
             }
             if (editUserAvatar) {
                 try {
-                    console.debug("Uploading avatar...");
+                    customLogger.debug("Uploading avatar...");
                     const uploadResult = await updateUserAvatarEndpointV1UsersAvatarPatch({
                         query: { user_id: values.id },
                         body: { img: editUserAvatar },
@@ -488,7 +531,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                     updatedUser = uploadResult.data as UserPublic;
                     if (updatedUser.avatarUrn) {
                         fetchUserAvatar(updatedUser.avatarUrn);
-                        console.debug("Avatar uploaded successfully.");
+                        customLogger.debug("Avatar uploaded successfully.");
                         notifications.show({
                             id: "avatar-upload-success",
                             title: "Success",
@@ -500,7 +543,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 } catch (error) {
                     if (error instanceof Error) {
                         const detail = error.message || "Failed to upload avatar.";
-                        console.error("Avatar upload failed:", detail);
+                        customLogger.error("Avatar upload failed:", detail);
                         notifications.show({
                             id: "avatar-upload-error",
                             title: "Avatar Upload Failed",
@@ -526,7 +569,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
             // Handle signature removal
             if (signatureRemoved && currentSignatureUrn) {
                 try {
-                    console.debug("Removing signature...");
+                    customLogger.debug("Removing signature...");
                     const deleteResult = await deleteUserSignatureEndpointV1UsersSignatureDelete({
                         query: { user_id: values.id },
                         headers: { Authorization: GetAccessTokenHeader() },
@@ -538,7 +581,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                         );
                     }
 
-                    console.debug("Signature removed successfully.");
+                    customLogger.debug("Signature removed successfully.");
                     notifications.show({
                         id: "signature-remove-success",
                         title: "Success",
@@ -549,7 +592,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 } catch (error) {
                     if (error instanceof Error) {
                         const detail = error.message || "Failed to remove signature.";
-                        console.error("Signature removal failed:", detail);
+                        customLogger.error("Signature removal failed:", detail);
                         notifications.show({
                             id: "signature-remove-error",
                             title: "E-signature Removal Failed",
@@ -564,7 +607,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
             // Handle signature upload
             if (editUserSignature) {
                 try {
-                    console.debug("Uploading signature...");
+                    customLogger.debug("Uploading signature...");
                     const uploadResult = await updateUserSignatureEndpointV1UsersSignaturePatch({
                         query: { user_id: values.id },
                         body: { img: editUserSignature },
@@ -583,7 +626,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                         if (newSignatureUrl) {
                             setEditUserSignatureUrl(newSignatureUrl);
                         }
-                        console.debug("Signature uploaded successfully.");
+                        customLogger.debug("Signature uploaded successfully.");
                         notifications.show({
                             id: "signature-upload-success",
                             title: "Success",
@@ -595,7 +638,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 } catch (error) {
                     if (error instanceof Error) {
                         const detail = error.message || "Failed to upload signature.";
-                        console.error("Signature upload failed:", detail);
+                        customLogger.error("Signature upload failed:", detail);
                         notifications.show({
                             id: "signature-upload-error",
                             title: "E-signature Upload Failed",
@@ -633,7 +676,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                     icon: <IconSendOff />,
                 });
             }
-            console.error("Update process failed:", error);
+            customLogger.error("Update process failed:", error);
             notifications.show({
                 id: "user-update-error",
                 title: "Error",
@@ -654,6 +697,16 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
 
             const [updatedUserInfo, updatedPermissions] = userInfoResult.data as [UserPublic, string[]];
             userCtx.updateUserInfo(updatedUserInfo, updatedPermissions, editUserAvatar);
+
+            // Save preferences to localStorage via theme context
+            Object.keys(localPreferences).forEach((key) => {
+                const prefKey = key as keyof UserPreferences;
+                if (localPreferences[prefKey] !== userPreferences[prefKey]) {
+                    updatePreference(prefKey, localPreferences[prefKey]);
+                }
+            });
+
+            setHasUnsavedChanges(false); // Reset unsaved changes flag after successful save
             buttonStateHandler.close();
         }
     };
@@ -701,7 +754,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
             setNewPassword("");
             modalHandler.close();
         } catch (error) {
-            console.error("Password update error:", error);
+            customLogger.error("Password update error:", error);
             notifications.show({
                 id: "password-update-error",
                 title: "Error",
@@ -740,10 +793,62 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 deactivated: userInfo.deactivated,
                 forceUpdateInfo: userInfo.forceUpdateInfo,
             };
-            console.debug("Setting form values:", new_values);
+            customLogger.debug("Setting form values:", new_values);
             form.setValues(new_values);
+            setHasUnsavedChanges(false); // Reset unsaved changes when form is initialized
         }
     }, [userInfo, availableRoles, availableSchools]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Track form changes to show unsaved changes indicator
+    useEffect(() => {
+        if (!userInfo) return;
+
+        const initialValues = {
+            id: userInfo.id,
+            username: userInfo.username || "",
+            nameFirst: userInfo.nameFirst || "",
+            nameMiddle: userInfo.nameMiddle || "",
+            nameLast: userInfo.nameLast || "",
+            position: userInfo.position || "",
+            email: userInfo.email || "",
+            school: availableSchools.find((school) => school.startsWith(`[${userInfo.schoolId}]`)),
+            role: availableRoles.find((role) => role.startsWith(`[${userInfo.roleId}]`)),
+            deactivated: userInfo.deactivated,
+            forceUpdateInfo: userInfo.forceUpdateInfo,
+        };
+
+        const currentValues = form.getValues();
+
+        // Check if any form values have changed or if files/flags have been modified
+        const hasFormChanges = Object.keys(initialValues).some((key) => {
+            const initial = initialValues[key as keyof typeof initialValues];
+            const current = currentValues[key as keyof typeof currentValues];
+            return initial !== current;
+        });
+
+        const hasFileChanges =
+            editUserAvatar !== null || avatarRemoved || editUserSignature !== null || signatureRemoved;
+
+        // Check if preferences have changed
+        const hasPreferenceChanges =
+            localPreferences.accentColor !== userPreferences.accentColor ||
+            localPreferences.language !== userPreferences.language;
+
+        setHasUnsavedChanges(hasFormChanges || hasFileChanges || hasPreferenceChanges);
+    }, [
+        form,
+        userInfo,
+        availableRoles,
+        availableSchools,
+        editUserAvatar,
+        avatarRemoved,
+        editUserSignature,
+        signatureRemoved,
+        localPreferences.accentColor,
+        localPreferences.language,
+        userPreferences.accentColor,
+        userPreferences.language,
+    ]);
 
     useEffect(() => {
         // Fetch available roles and schools
@@ -765,7 +870,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 );
                 setAvailableRoles(formattedRoles);
             } catch (error) {
-                console.error("Failed to fetch roles:", error);
+                customLogger.error("Failed to fetch roles:", error);
             }
 
             try {
@@ -777,7 +882,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 );
                 setAvailableSchools(formattedSchools);
             } catch (error) {
-                console.error("Failed to fetch schools:", error);
+                customLogger.error("Failed to fetch schools:", error);
             }
         };
 
@@ -785,7 +890,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
     }, []);
 
     useEffect(() => {
-        console.debug("MainLoginComponent mounted, checking OAuth support");
+        customLogger.debug("MainLoginComponent mounted, checking OAuth support");
         // Check if OAuth is supported by the server
         const fetchOAuthSupport = async () => {
             try {
@@ -800,16 +905,16 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 }
 
                 const response = result.data;
-                console.debug("OAuth support response:", response);
+                customLogger.debug("OAuth support response:", response);
                 if (response) {
                     setOAuthSupport({
                         google: response.google,
                         microsoft: response.microsoft,
                         facebook: response.facebook,
                     });
-                    console.info("OAuth support updated", response);
+                    customLogger.info("OAuth support updated", response);
                 } else {
-                    console.warn("No OAuth support information received from server.");
+                    customLogger.warn("No OAuth support information received from server.");
                     notifications.show({
                         id: "oauth-support-error",
                         title: "OAuth Support Error",
@@ -819,7 +924,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                     });
                 }
             } catch (error) {
-                console.error("Error fetching OAuth support:", error);
+                customLogger.error("Error fetching OAuth support:", error);
                 notifications.show({
                     id: "oauth-support-fetch-error",
                     title: "OAuth Support Fetch Error",
@@ -837,7 +942,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
     useEffect(() => {
         const emailVerificationToken = searchParams.get("emailVerificationToken");
         if (emailVerificationToken) {
-            console.debug("Email verification token found:", emailVerificationToken);
+            customLogger.debug("Email verification token found:", emailVerificationToken);
 
             const verifyEmail = async () => {
                 try {
@@ -887,7 +992,14 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
     return (
         <Box mx="auto" p="lg">
             <Flex justify="space-between" align="center" mb="sm">
-                <Title order={3}>Profile</Title>
+                <Group align="center">
+                    <Title order={3}>Profile</Title>
+                    {hasUnsavedChanges && (
+                        <Badge color="yellow" variant="filled" size="sm">
+                            You have unsaved changes
+                        </Badge>
+                    )}
+                </Group>
                 <UserSyncButton size="compact-sm" />
             </Flex>
             <Divider mb="lg" />
@@ -1188,6 +1300,47 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                         </Text>
                     </Stack>
                 </Flex>
+                <Paper shadow="sm" p="md" radius="md" mt="xl">
+                    <Title order={4} mb="xs">
+                        Personal Preferences
+                    </Title>
+                    <Stack>
+                        <Switch
+                            label="Dark Mode"
+                            checked={colorScheme === "dark"}
+                            onChange={(e) => setColorScheme(e.currentTarget.checked ? "dark" : "light")}
+                        />
+                        <Group align="end">
+                            <ColorInput
+                                label="Accent Color"
+                                value={localPreferences.accentColor}
+                                onChange={(color) => handlePreferenceChange("accentColor", color)}
+                                style={{ flex: 1 }}
+                            />
+                            <Button
+                                variant="light"
+                                size="sm"
+                                onClick={() => handlePreferenceChange("accentColor", "#258ce6")}
+                                title="Reset to default accent color"
+                            >
+                                Reset
+                            </Button>
+                        </Group>
+                        <Select
+                            label="Default Language"
+                            data={[
+                                { value: "en", label: "English" },
+                                { value: "fil", label: "Filipino" },
+                            ]}
+                            value={localPreferences.language}
+                            onChange={(value) => handlePreferenceChange("language", value)}
+                            description="This setting will be implemented in a future update"
+                        />
+                    </Stack>
+                </Paper>
+                <Button loading={buttonLoading} rightSection={<IconDeviceFloppy />} type="submit" fullWidth mt="xl">
+                    Save
+                </Button>
                 <Title order={4} mb="sm" mt="lg">
                     Account Security
                 </Title>
@@ -1375,7 +1528,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                     setOtpEnabled(false);
                                 }
                             } catch (error) {
-                                console.error(error instanceof Error ? error.message : error);
+                                customLogger.error(error instanceof Error ? error.message : String(error));
                                 notifications.show({
                                     title: "Error",
                                     message: "An unknown error occurred.",
@@ -1490,7 +1643,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                     setShowOTPModal(false);
                                     setShowRecoveryCodeModal(true);
                                 } catch (error) {
-                                    console.error(error instanceof Error ? error.message : error);
+                                    customLogger.error(error instanceof Error ? error.message : String(error));
                                     notifications.show({
                                         title: "Error Enabling Two-Step Verification",
                                         message: "An unknown error occurred.",
@@ -1547,9 +1700,6 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                         </Group>
                     </Stack>
                 </Modal>
-                <Button loading={buttonLoading} rightSection={<IconDeviceFloppy />} type="submit" fullWidth mt="xl">
-                    Save
-                </Button>
             </form>
             <Divider my="lg" label="Linked Accounts" labelPosition="center" />
             <Stack>
@@ -1606,7 +1756,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                                         color: "green",
                                     });
                                 } catch (error) {
-                                    console.error("Failed to unlink Google account:", error);
+                                    customLogger.error("Failed to unlink Google account:", error);
                                     notifications.show({
                                         title: "Unlink Failed",
                                         message: "Failed to unlink your Google account. Please try again later.",
@@ -1765,44 +1915,6 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 </Group>
             </Stack>
 
-            <Paper shadow="sm" p="md" radius="md" mt="xl">
-                <Title order={4} mb="xs">
-                    Personal Preferences
-                </Title>
-                <Stack>
-                    <Switch
-                        label="Dark Mode"
-                        checked={colorScheme === "dark"}
-                        onChange={(e) => setColorScheme(e.currentTarget.checked ? "dark" : "light")}
-                    />
-                    <ColorInput
-                        label="Accent Color"
-                        value={userPreferences.accentColor}
-                        onChange={(color) => handlePreferenceChange("accentColor", color)}
-                    />
-                    <Select
-                        label="Default Language"
-                        data={[
-                            { value: "en", label: "English" },
-                            { value: "fil", label: "Filipino" },
-                        ]}
-                        value={userPreferences.language}
-                        onChange={(value) => handlePreferenceChange("language", value)}
-                    />
-                    <Select
-                        label="Timezone"
-                        data={[
-                            { value: "Asia/Manila", label: "Asia/Manila" },
-                            { value: "Asia/Singapore", label: "Asia/Singapore" },
-                            { value: "Asia/Hong_Kong", label: "Asia/Hong_Kong" },
-                            { value: "Asia/Taipei", label: "Asia/Taipei" },
-                        ]}
-                        value={userPreferences.timezone}
-                        onChange={(value) => handlePreferenceChange("timezone", value)}
-                    />
-                </Stack>
-            </Paper>
-
             {/* Signature Drawing Modal */}
             <Modal
                 opened={showSignatureDrawModal}
@@ -1845,7 +1957,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                         const [updatedUserInfo, updatedPermissions] = userInfoResult.data as [UserPublic, string[]];
                         userCtx.updateUserInfo(updatedUserInfo, updatedPermissions);
                     } catch (error) {
-                        console.error("Failed to refresh user info after email change:", error);
+                        customLogger.error("Failed to refresh user info after email change:", error);
                     }
                 }}
             />
