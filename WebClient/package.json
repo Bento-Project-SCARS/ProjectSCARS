@@ -44,7 +44,7 @@
         "next-qrcode": "^2.5.1",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
-        "react-easy-crop": "^5.4.2",
+        "react-easy-crop": "^5.5.0",
         "react-scan": "^0.4.3",
         "recharts": "^2.15.4",
         "swapy": "^1.0.5"
