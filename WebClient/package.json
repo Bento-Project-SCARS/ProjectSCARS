@@ -40,7 +40,7 @@
         "ky": "^1.8.1",
         "mantine-data-grid": "^0.2.3",
         "motion": "^12.23.3",
-        "next": "15.3.5",
+        "next": "15.4.1",
         "next-qrcode": "^2.5.1",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
