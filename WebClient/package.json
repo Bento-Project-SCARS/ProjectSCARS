@@ -37,7 +37,7 @@
         "embla-carousel-react": "^8.6.0",
         "html2canvas": "^1.4.1",
         "jspdf": "^3.0.1",
-        "ky": "^1.8.1",
+        "ky": "^1.8.2",
         "mantine-data-grid": "^0.2.3",
         "motion": "^12.23.3",
         "next": "15.4.1",
