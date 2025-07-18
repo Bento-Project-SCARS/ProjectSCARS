@@ -1,6 +1,6 @@
 "use client";
 
-import { ActionIcon, Avatar, Code, Group, Image, Indicator, NavLink, Text, Title, Tooltip } from "@mantine/core";
+import { ActionIcon, Avatar, Group, Indicator, NavLink, Text, Tooltip } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
     IconBuilding,
@@ -18,7 +18,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion } from "motion/react";
 
 import { getNotificationQuantityV1NotificationsQuantityGet } from "@/lib/api/csclient";
-import { Program, roles } from "@/lib/info";
+import { roles } from "@/lib/info";
 import { useAuth } from "@/lib/providers/auth";
 import { useUser } from "@/lib/providers/user";
 import { JSX, useEffect, useState } from "react";
@@ -181,20 +181,6 @@ export const Navbar: React.FC = () => {
     return (
         <nav className={classes.navbar}>
             <div className={classes.navbarMain}>
-                <Group className={classes.header} justify="space-between">
-                    <Group>
-                        <Image
-                            src="/assets/logos/BENTO.svg"
-                            alt="BENTO Logo"
-                            radius="md"
-                            h={70}
-                            w="auto"
-                            fit="contain"
-                        />
-                        <Title>{Program.name}</Title>
-                        <Code fw={700}>{Program.version}</Code>
-                    </Group>
-                </Group>
                 <div>{links}</div>
             </div>
             <div className={classes.footer}>

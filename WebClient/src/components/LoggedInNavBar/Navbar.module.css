@@ -1,6 +1,6 @@
 .navbar {
     height: 100vh;
-    width: 325vw;
+    width: 325px;
     padding: var(--mantine-spacing-md);
     display: flex;
     flex-direction: column;
@@ -8,12 +8,6 @@
 
 .navbarMain {
     flex: 1;
-}
-
-.header {
-    padding-bottom: var(--mantine-spacing-md);
-    margin-bottom: calc(var(--mantine-spacing-md) * 1.5);
-    border-bottom: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
 }
 
 .footer {
@@ -59,10 +53,4 @@
     margin-right: var(--mantine-spacing-sm);
     width: 25px;
     height: 25px;
-}
-
-@media (max-width: 48em) {
-    .navbar {
-        width: 325px;
-    }
 }
