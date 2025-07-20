@@ -379,13 +379,13 @@ export default function ReportsPage() {
                     });
                 }
 
-                if (failedReports.length > 0) {
-                    notifications.show({
-                        title: "Partial Update",
-                        message: `Some component reports could not be updated (${failedReports.length} failed). This is normal if those reports don't exist yet.`,
-                        color: "yellow",
-                    });
-                }
+                // if (failedReports.length > 0) {
+                //     notifications.show({
+                //         title: "Partial Update",
+                //         message: `Some component reports could not be updated (${failedReports.length} failed). This is normal if those reports don't exist yet.`,
+                //         color: "yellow",
+                //     });
+                // }
 
                 customLogger.log(
                     `Cascade complete. Updated: ${updatedReports.join(", ")}. Failed: ${failedReports.join(", ")}`

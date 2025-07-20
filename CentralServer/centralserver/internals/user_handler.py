@@ -1,6 +1,6 @@
 import datetime
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import BackgroundTasks, HTTPException, UploadFile, status
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
 
@@ -79,14 +79,20 @@ async def validate_password(password: str) -> tuple[bool, str | None]:
 async def create_user(
     new_user: UserCreate,
     session: Session,
+    background_tasks: BackgroundTasks,
     commit: bool = True,
+    send_notification: bool = True,
+    email_verified: bool = False,
 ) -> User:
     """Create a new user in the database.
 
     Args:
         new_user: The new user's information.
         session: The database session to use.
+        background_tasks: The background tasks to use for sending notifications.
         commit: Whether to commit the changes to the database.
+        send_notification: Whether to send a notification to the user.
+        email_verified: Whether the email should be marked as verified (for invited users).
 
     Returns:
         A new user object.
@@ -128,21 +134,32 @@ async def create_user(
         username=new_user.username,
         password=crypt_ctx.hash(new_user.password),
         roleId=new_user.roleId,
+        email=new_user.email,
+        nameFirst=new_user.nameFirst,
+        nameMiddle=new_user.nameMiddle,
+        nameLast=new_user.nameLast,
+        position=new_user.position,
+        schoolId=new_user.schoolId,
+        emailVerified=email_verified
+        or new_user.email is None,  # Auto-verify if explicitly set or if no email
     )
     session.add(user)
     if commit:
         session.commit()
 
     session.refresh(user)
-
-    await push_notification(
-        owner_id=user.id,
-        title="Please add an email address",
-        content=f"Welcome to {Program.name}! Please add an email address to your account to receive important notifications.",
-        important=True,
-        notification_type=NotificationType.MAIL,
-        session=session,
-    )
+    # Only send notification about missing email if email is not provided and send_notification is True
+    # Don't send notifications for users that have email pre-filled (they can verify it separately)
+    if send_notification and not user.email:
+        background_tasks.add_task(
+            push_notification,
+            owner_id=user.id,
+            title="Please add an email address",
+            content=f"Welcome to {Program.name}! Please add an email address to your account to receive important notifications.",
+            important=True,
+            notification_type=NotificationType.MAIL,
+            session=session,
+        )
 
     logger.info("User `%s` created.", new_user.username)
     return user

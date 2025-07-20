@@ -189,6 +189,12 @@ function PayrollPageContent() {
         return reportStatus === "review";
     }, [reportStatus]);
 
+    // Helper function to check if a date is a weekend (Saturday or Sunday)
+    const isWeekend = useCallback((date: Date) => {
+        const dayOfWeek = dayjs(date).day(); // 0 = Sunday, 6 = Saturday
+        return dayOfWeek === 0 || dayOfWeek === 6;
+    }, []);
+
     useEffect(() => {
         if (weekPeriods.length > 0 && !selectedWeekId) {
             setSelectedWeekId(weekPeriods[0].id);
@@ -743,6 +749,27 @@ function PayrollPageContent() {
     };
 
     const toggleAttendance = (employeeId: string, date: Date) => {
+        // Prevent attendance marking for weekends
+        if (isWeekend(date)) {
+            notifications.show({
+                title: "Weekend Not Allowed",
+                message:
+                    "Attendance cannot be marked for weekends (Saturday and Sunday). The canteen is closed on weekends.",
+                color: "orange",
+            });
+            return;
+        }
+
+        // Prevent attendance marking for future dates
+        if (dayjs(date).isAfter(dayjs(), "day")) {
+            notifications.show({
+                title: "Future Date Not Allowed",
+                message: "Attendance cannot be marked for future dates.",
+                color: "orange",
+            });
+            return;
+        }
+
         const dateKey = dayjs(date).format("YYYY-MM-DD");
         const existingRecord = attendanceRecords.find(
             (record) => record.employeeId === employeeId && record.date === dateKey
@@ -1659,7 +1686,7 @@ function PayrollPageContent() {
                                 Working Days
                             </Text>
                             <Group gap="xs">
-                                {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+                                {[, "M", "T", "W", "T", "F"].map((day, index) => (
                                     <ActionIcon
                                         disabled={isReadOnly()}
                                         key={`${day}-${index}`}
@@ -1675,13 +1702,13 @@ function PayrollPageContent() {
                                         }}
                                         title={
                                             [
-                                                "Sunday",
+                                                // "Sunday",
                                                 "Monday",
                                                 "Tuesday",
                                                 "Wednesday",
                                                 "Thursday",
                                                 "Friday",
-                                                "Saturday",
+                                                // "Saturday",
                                             ][index]
                                         }
                                     >
@@ -1808,6 +1835,11 @@ function PayrollPageContent() {
                                                     record?.customDailyRate || employee.defaultDailyRate;
                                                 const hasCustomRate = record?.customDailyRate !== undefined;
 
+                                                // Check if this date should be disabled
+                                                const isWeekendDate = isWeekend(date);
+                                                const isFutureDate = dayjs(date).isAfter(dayjs(), "day");
+                                                const shouldDisableDate = isWeekendDate || isFutureDate;
+
                                                 return (
                                                     <Table.Td key={date.toISOString()} className="text-center">
                                                         <div className="flex flex-col gap-1">
@@ -1815,18 +1847,35 @@ function PayrollPageContent() {
                                                                 <Button
                                                                     size="xs"
                                                                     variant={isPresent ? "filled" : "outline"}
-                                                                    color={isPresent ? "green" : "gray"}
+                                                                    color={
+                                                                        shouldDisableDate
+                                                                            ? "gray"
+                                                                            : isPresent
+                                                                            ? "green"
+                                                                            : "gray"
+                                                                    }
                                                                     onClick={() => toggleAttendance(employee.id, date)}
                                                                     onContextMenu={(e) => {
                                                                         e.preventDefault();
-                                                                        if (!selectedWeek.isCompleted) {
+                                                                        if (
+                                                                            !selectedWeek.isCompleted &&
+                                                                            !shouldDisableDate
+                                                                        ) {
                                                                             openCustomRateModal(employee.id, date);
                                                                         }
                                                                     }}
                                                                     className="w-16"
-                                                                    disabled={selectedWeek.isCompleted || isReadOnly()}
+                                                                    disabled={
+                                                                        selectedWeek.isCompleted ||
+                                                                        isReadOnly() ||
+                                                                        shouldDisableDate
+                                                                    }
                                                                     title={
-                                                                        "Left click: Mark attendance \nRight click: Set custom rate"
+                                                                        shouldDisableDate
+                                                                            ? isWeekendDate
+                                                                                ? "Weekends not allowed"
+                                                                                : "Future dates not allowed"
+                                                                            : "Left click: Mark attendance \nRight click: Set custom rate"
                                                                     }
                                                                 >
                                                                     {isPresent ? `₱${displayRate}` : " - "}

@@ -254,6 +254,14 @@ export function MainLoginComponent(): React.ReactElement {
                     color: "red",
                     icon: <IconX />,
                 });
+            } else if (error instanceof Error && error.message.includes("status code 403")) {
+                notifications.show({
+                    id: "login-forbidden",
+                    title: "Login failed",
+                    message: "This user account is not allowed to log in.",
+                    color: "red",
+                    icon: <IconX />,
+                });
             } else {
                 customLogger.error("Error logging in:", error);
                 notifications.show({

@@ -1,6 +1,6 @@
 "use client";
 
-import { Role, School, UserPublic, UserUpdate, createNewUserV1AuthCreatePost } from "@/lib/api/csclient";
+import { Role, School, UserPublic, createNewUserV1AuthCreatePost } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
 import { Button, Modal, PasswordInput, Select, Stack, TextInput } from "@mantine/core";
@@ -15,7 +15,6 @@ interface CreateUserComponentProps {
     setModalOpen: (open: boolean) => void;
     availableSchools: School[];
     availableRoles: Role[];
-    UpdateUserInfo: (userInfo: UserUpdate) => Promise<UserPublic>;
     onUserCreate?: (newUser: UserPublic) => void;
 }
 
@@ -24,7 +23,6 @@ export function CreateUserComponent({
     setModalOpen,
     availableSchools,
     availableRoles,
-    UpdateUserInfo,
     onUserCreate,
 }: CreateUserComponentProps) {
     const [buttonLoading, buttonStateHandler] = useDisclosure(false);
@@ -79,23 +77,19 @@ export function CreateUserComponent({
                         username: values.username,
                         roleId: Number(values.role),
                         password: values.password,
+                        email: values.email || null,
+                        nameFirst: values.firstName || null,
+                        nameMiddle: values.middleName || null,
+                        nameLast: values.lastName || null,
+                        position: values.position || null,
+                        schoolId: values.assignedSchool ? Number(values.assignedSchool) : null,
                     },
                 });
                 if (result.error) {
                     throw new Error(`Failed to create user: ${result.response.status} ${result.response.statusText}`);
                 }
-                const new_user = result.data;
-                const updatedUser = await UpdateUserInfo({
-                    id: new_user.id,
-                    username: values.username,
-                    email: values.email || null,
-                    nameFirst: values.firstName,
-                    nameMiddle: values.middleName,
-                    nameLast: values.lastName,
-                    position: values.position || null,
-                    schoolId: values.assignedSchool ? Number(values.assignedSchool) : null,
-                    roleId: Number(values.role),
-                });
+                const newUser = result.data;
+
                 notifications.show({
                     id: "create-user-success",
                     title: "Success",
@@ -105,7 +99,7 @@ export function CreateUserComponent({
                 });
                 setModalOpen(false);
                 form.reset();
-                if (onUserCreate) onUserCreate(updatedUser);
+                if (onUserCreate) onUserCreate(newUser);
             } catch (err) {
                 customLogger.error(err instanceof Error ? err.message : "Failed to create user");
                 notifications.show({
@@ -119,7 +113,7 @@ export function CreateUserComponent({
                 buttonStateHandler.close();
             }
         },
-        [buttonStateHandler, form, setModalOpen, UpdateUserInfo, onUserCreate]
+        [buttonStateHandler, form, setModalOpen, onUserCreate]
     );
 
     return (

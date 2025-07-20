@@ -1,5 +1,6 @@
 from typing import Generator
 
+from fastapi import BackgroundTasks
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from centralserver import info
@@ -64,6 +65,8 @@ async def populate_db() -> bool:
                     password=info.Database.default_password,
                 ),
                 session,
+                BackgroundTasks(),
+                send_notification=False,
             )
             populated = True
 

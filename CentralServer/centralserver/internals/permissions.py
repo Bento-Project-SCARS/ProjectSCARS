@@ -125,7 +125,7 @@ ROLE_PERMISSIONS: Final[dict[int, list[str]]] = {
         "users:self:modify:school",
         "users:self:modify:role",
         "users:self:forceupdate",
-        "users:global:deactivate",
+        "users:self:deactivate",
         "users:self:read",
         "roles:global:read",
     ],

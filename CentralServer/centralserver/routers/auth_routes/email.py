@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from centralserver import info
 from centralserver.internals.auth_handler import (
     verify_access_token,
+    verify_user_permission,
 )
 from centralserver.internals.config_handler import app_config
 from centralserver.internals.db_handler import get_db_session
@@ -355,3 +356,112 @@ async def reset_password(
     session.refresh(user)
     logger.info("Password reset successful for user: %s", user.username)
     return {"message": "Password reset successful."}
+
+
+@router.post("/request/admin")
+async def request_verification_email_admin(
+    user_id: str,
+    token: logged_in_dep,
+    session: Annotated[Session, Depends(get_db_session)],
+    background_tasks: BackgroundTasks,
+) -> dict[str, str]:
+    """Send a verification email to a specific user (admin only).
+
+    Args:
+        user_id: The ID of the user to send verification email to.
+        token: The decoded JWT token of the logged-in admin user.
+        session: The database session.
+        background_tasks: Background tasks handler.
+
+    Returns:
+        A message indicating the success of the operation.
+
+    Raises:
+        HTTPException: If the user is not found or other errors occur.
+    """
+
+    # Check permissions
+    if not await verify_user_permission("users:global:modify:email", session, token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to send verification emails for other users.",
+        )
+
+    logger.info(
+        "Admin %s requesting verification email for user: %s", token.id, user_id
+    )
+    target_user = session.get(User, user_id)
+
+    if not target_user:
+        logger.warning("Target user not found for email verification: %s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Target user not found.",
+        )
+
+    if target_user.deactivated:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Target user account is deactivated.",
+        )
+
+    if not target_user.email:
+        logger.warning(
+            "Target user %s does not have an email address set.",
+            target_user.username,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The target user does not have an email address set.",
+        )
+
+    # Generate a verification token and set its expiration time
+    target_user.verificationToken = str(uuid.uuid4())
+    target_user.verificationTokenExpires = datetime.datetime.now(
+        datetime.timezone.utc
+    ) + datetime.timedelta(
+        minutes=app_config.authentication.recovery_token_expire_minutes
+    )
+    session.commit()
+    session.refresh(target_user)
+
+    verification_link = f"{app_config.connection.base_url}/account/profile?emailVerificationToken={target_user.verificationToken}"
+    logger.debug(
+        "Generated verification link for user %s: %s",
+        target_user.username,
+        verification_link,
+    )
+
+    try:
+        background_tasks.add_task(
+            send_mail,
+            to_address=target_user.email,
+            subject=f"{info.Program.name} | Email Verification Request",
+            text=get_template(
+                "email_verification.txt",
+                name=target_user.nameFirst or target_user.username,
+                app_name=info.Program.name,
+                verification_link=verification_link,
+                expiration_time=app_config.authentication.recovery_token_expire_minutes,
+            ),
+            html=get_template(
+                "email_verification.html",
+                name=target_user.nameFirst or target_user.username,
+                app_name=info.Program.name,
+                verification_link=verification_link,
+                expiration_time=app_config.authentication.recovery_token_expire_minutes,
+            ),
+        )
+
+    except EmailTemplateNotFoundError as e:
+        logger.error("Template for email verification not found.")
+        logger.debug("Target user's email verification link: %s", verification_link)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification email. Please contact support.",
+        ) from e
+
+    logger.info(
+        "Verification email sent successfully to user: %s", target_user.username
+    )
+    return {"message": "Email verification sent successfully to target user."}

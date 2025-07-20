@@ -15,7 +15,7 @@ import {
     getAllRolesV1AuthRolesGet,
     getAllUsersEndpointV1UsersAllGet,
     getUserAvatarEndpointV1UsersAvatarGet,
-    requestVerificationEmailV1AuthEmailRequestPost,
+    requestVerificationEmailAdminV1AuthEmailRequestAdminPost,
     updateUserAvatarEndpointV1UsersAvatarPatch,
     updateUserEndpointV1UsersPatch,
 } from "@/lib/api/csclient";
@@ -654,50 +654,78 @@ export default function UsersPage(): JSX.Element {
                                         indeterminate={selected.size > 0 && selected.size < users.length}
                                         onChange={(event) => handleSelectAll(event.currentTarget.checked)}
                                     />
-                                    {selected.size > 0 && (
-                                        <Menu shadow="md" width={200}>
-                                            <Menu.Target>
-                                                <Button variant="light" size="xs">
-                                                    Actions ({selected.size})
-                                                </Button>
-                                            </Menu.Target>
-                                            <Menu.Dropdown>
-                                                <Menu.Label>Bulk Actions</Menu.Label>
-                                                <Menu.Item
-                                                    leftSection={<IconUserOff size={14} />}
-                                                    onClick={() => handleBulkAction("deactivate")}
-                                                >
-                                                    Deactivate Users
-                                                </Menu.Item>
-                                                <Menu.Item
-                                                    leftSection={<IconUserCheck size={14} />}
-                                                    onClick={() => handleBulkAction("reactivate")}
-                                                >
-                                                    Reactivate Users
-                                                </Menu.Item>
-                                                <Menu.Divider />
-                                                <Menu.Item
-                                                    leftSection={<IconSchool size={14} />}
-                                                    onClick={handleOpenBulkSchoolModal}
-                                                >
-                                                    Assign School
-                                                </Menu.Item>
-                                                <Menu.Divider />
-                                                <Menu.Item
-                                                    leftSection={<IconCheck size={14} />}
-                                                    onClick={() => handleBulkForceUpdateToggle("enable")}
-                                                >
-                                                    Enable Force Update Info
-                                                </Menu.Item>
-                                                <Menu.Item
-                                                    leftSection={<IconX size={14} />}
-                                                    onClick={() => handleBulkForceUpdateToggle("disable")}
-                                                >
-                                                    Disable Force Update Info
-                                                </Menu.Item>
-                                            </Menu.Dropdown>
-                                        </Menu>
-                                    )}
+                                    {selected.size > 0 &&
+                                        (userCtx.userPermissions?.includes("users:global:deactivate") ||
+                                            userCtx.userPermissions?.includes("users:global:modify:school") ||
+                                            userCtx.userPermissions?.includes("users:global:forceupdate")) && (
+                                            <Menu shadow="md" width={200}>
+                                                <Menu.Target>
+                                                    <Button variant="light" size="xs">
+                                                        Actions ({selected.size})
+                                                    </Button>
+                                                </Menu.Target>
+                                                <Menu.Dropdown>
+                                                    <Menu.Label>Bulk Actions</Menu.Label>
+                                                    <Menu.Item
+                                                        leftSection={<IconUserOff size={14} />}
+                                                        disabled={
+                                                            !userCtx.userPermissions?.includes(
+                                                                "users:global:deactivate"
+                                                            )
+                                                        }
+                                                        onClick={() => handleBulkAction("deactivate")}
+                                                    >
+                                                        Deactivate Users
+                                                    </Menu.Item>
+                                                    <Menu.Item
+                                                        leftSection={<IconUserCheck size={14} />}
+                                                        disabled={
+                                                            !userCtx.userPermissions?.includes(
+                                                                "users:global:deactivate"
+                                                            )
+                                                        }
+                                                        onClick={() => handleBulkAction("reactivate")}
+                                                    >
+                                                        Reactivate Users
+                                                    </Menu.Item>
+                                                    <Menu.Divider />
+                                                    <Menu.Item
+                                                        leftSection={<IconSchool size={14} />}
+                                                        disabled={
+                                                            !userCtx.userPermissions?.includes(
+                                                                "users:global:modify:school"
+                                                            )
+                                                        }
+                                                        onClick={handleOpenBulkSchoolModal}
+                                                    >
+                                                        Assign School
+                                                    </Menu.Item>
+                                                    <Menu.Divider />
+                                                    <Menu.Item
+                                                        leftSection={<IconCheck size={14} />}
+                                                        disabled={
+                                                            !userCtx.userPermissions?.includes(
+                                                                "users:global:forceupdate"
+                                                            )
+                                                        }
+                                                        onClick={() => handleBulkForceUpdateToggle("enable")}
+                                                    >
+                                                        Enable Force Update Info
+                                                    </Menu.Item>
+                                                    <Menu.Item
+                                                        leftSection={<IconX size={14} />}
+                                                        disabled={
+                                                            !userCtx.userPermissions?.includes(
+                                                                "users:global:forceupdate"
+                                                            )
+                                                        }
+                                                        onClick={() => handleBulkForceUpdateToggle("disable")}
+                                                    >
+                                                        Disable Force Update Info
+                                                    </Menu.Item>
+                                                </Menu.Dropdown>
+                                            </Menu>
+                                        )}
                                 </Group>
                             </TableTh>
                             <TableTh>Username</TableTh>
@@ -750,27 +778,75 @@ export default function UsersPage(): JSX.Element {
                                                     </Tooltip>
                                                 ) : (
                                                     <Tooltip
-                                                        label="Email not verified (Click to send verification mail)"
+                                                        label={
+                                                            userCtx.userPermissions?.includes(
+                                                                "users:global:modify:email"
+                                                            )
+                                                                ? "Email not verified (Click to send verification mail)"
+                                                                : "Email not verified (Permission required to send verification mail)"
+                                                        }
                                                         position="bottom"
                                                         withArrow
                                                     >
                                                         <motion.div
-                                                            whileTap={{ scale: 0.9 }}
-                                                            whileHover={{ scale: 1.05 }}
+                                                            whileTap={{
+                                                                scale: userCtx.userPermissions?.includes(
+                                                                    "users:global:modify:email"
+                                                                )
+                                                                    ? 0.9
+                                                                    : 1,
+                                                            }}
+                                                            whileHover={{
+                                                                scale: userCtx.userPermissions?.includes(
+                                                                    "users:global:modify:email"
+                                                                )
+                                                                    ? 1.05
+                                                                    : 1,
+                                                            }}
                                                             style={{
                                                                 display: "flex",
                                                                 alignItems: "center",
                                                                 justifyContent: "center",
+                                                                cursor: userCtx.userPermissions?.includes(
+                                                                    "users:global:modify:email"
+                                                                )
+                                                                    ? "pointer"
+                                                                    : "not-allowed",
+                                                                opacity: userCtx.userPermissions?.includes(
+                                                                    "users:global:modify:email"
+                                                                )
+                                                                    ? 1
+                                                                    : 0.5,
                                                             }}
                                                         >
                                                             <IconCircleDashedX
                                                                 size={16}
                                                                 color="gray"
                                                                 onClick={async () => {
+                                                                    // Check permission before proceeding
+                                                                    if (
+                                                                        !userCtx.userPermissions?.includes(
+                                                                            "users:global:modify:email"
+                                                                        )
+                                                                    ) {
+                                                                        notifications.show({
+                                                                            id: "verification-email-permission-denied",
+                                                                            title: "Permission Denied",
+                                                                            message:
+                                                                                "You don't have permission to send verification emails for other users.",
+                                                                            color: "red",
+                                                                            icon: <IconSendOff />,
+                                                                        });
+                                                                        return;
+                                                                    }
+
                                                                     try {
                                                                         const result =
-                                                                            await requestVerificationEmailV1AuthEmailRequestPost(
+                                                                            await requestVerificationEmailAdminV1AuthEmailRequestAdminPost(
                                                                                 {
+                                                                                    query: {
+                                                                                        user_id: user.id,
+                                                                                    },
                                                                                     headers: {
                                                                                         Authorization:
                                                                                             GetAccessTokenHeader(),
@@ -787,8 +863,7 @@ export default function UsersPage(): JSX.Element {
                                                                         notifications.show({
                                                                             id: "verification-email-sent",
                                                                             title: "Verification Email Sent",
-                                                                            message:
-                                                                                "Please check your email and click the link to verify your email.",
+                                                                            message: `Verification email has been sent to ${user.email}. The user should check their email and click the link to verify.`,
                                                                             color: "blue",
                                                                             icon: <IconMail />,
                                                                         });
@@ -1030,7 +1105,6 @@ export default function UsersPage(): JSX.Element {
                         setModalOpen={setOpenCreateUserModal}
                         availableSchools={availableSchools}
                         availableRoles={availableRoles}
-                        UpdateUserInfo={UpdateUserInfo}
                         onUserCreate={(newUser) => {
                             setAllUsers((prev) => [newUser, ...prev]);
                         }}

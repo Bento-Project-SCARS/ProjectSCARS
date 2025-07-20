@@ -82,7 +82,7 @@ import {
 } from "@tabler/icons-react";
 import { useQRCode } from "next-qrcode";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 interface EditProfileValues {
@@ -107,6 +107,7 @@ interface ProfileContentProps {
 
 function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileContentProps) {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const userCtx = useUser();
     const { SVG } = useQRCode();
     const { setColorScheme, colorScheme } = useMantineColorScheme();
@@ -772,6 +773,8 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
             setHasUnsavedChanges(false); // Reset unsaved changes flag after successful save
             buttonStateHandler.close();
         }
+
+        router.push("/dashboard");
     };
 
     const handlePasswordChange = async (values: {
@@ -1130,7 +1133,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 </Title>
                 <Tooltip
                     disabled={userPermissions?.includes("users:self:modify:username")}
-                    label="Username cannot be changed"
+                    label="Username cannot be changed. Contact an administrator for assistance."
                     withArrow
                 >
                     <TextInput
@@ -1143,7 +1146,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 </Tooltip>{" "}
                 <Tooltip
                     disabled={userPermissions?.includes("users:self:modify:role")}
-                    label="Role cannot be changed"
+                    label="Role cannot be changed. Contact an administrator for assistance."
                     withArrow
                 >
                     <Select
@@ -1157,8 +1160,21 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                     />
                 </Tooltip>
                 <Tooltip
+                    disabled={userPermissions?.includes("users:self:modify:position")}
+                    label="Position cannot be changed. Contact an administrator for assistance."
+                    withArrow
+                >
+                    <TextInput
+                        disabled={!userPermissions?.includes("users:self:modify:position")}
+                        label="Position"
+                        placeholder="Position"
+                        key={form.key("position")}
+                        {...form.getInputProps("position")}
+                    />
+                </Tooltip>
+                <Tooltip
                     disabled={userPermissions?.includes("users:self:modify:school")}
-                    label="School cannot be changed"
+                    label="School cannot be changed. Contact an administrator for assistance.. Contact an administrator for assistance."
                     withArrow
                 >
                     <Select
@@ -1175,7 +1191,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 <Group mt="md">
                     <Tooltip
                         disabled={userPermissions?.includes("users:self:deactivate")}
-                        label="Deactivation status cannot be changed"
+                        label="Deactivation status cannot be changed. Contact an administrator for assistance."
                         withArrow
                     >
                         <Switch
@@ -1188,7 +1204,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                     </Tooltip>
                     <Tooltip
                         disabled={userPermissions?.includes("users:self:forceupdate")}
-                        label="Force Update Required cannot be changed"
+                        label="Force Update Required cannot be changed. Contact an administrator for assistance."
                         withArrow
                     >
                         <Switch
@@ -1206,7 +1222,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                 <Group>
                     <Tooltip
                         disabled={userPermissions?.includes("users:self:modify:name")}
-                        label="Name cannot be changed"
+                        label="Name cannot be changed. Contact an administrator for assistance."
                         withArrow
                     >
                         <TextInput
@@ -1233,7 +1249,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                     </Tooltip>
                     <Tooltip
                         disabled={userPermissions?.includes("users:self:modify:name")}
-                        label="Name cannot be changed"
+                        label="Name cannot be changed. Contact an administrator for assistance."
                         withArrow
                     >
                         <TextInput
@@ -1260,7 +1276,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                     </Tooltip>
                     <Tooltip
                         disabled={userPermissions?.includes("users:self:modify:name")}
-                        label="Name cannot be changed"
+                        label="Name cannot be changed. Contact an administrator for assistance."
                         withArrow
                     >
                         <TextInput
@@ -1417,7 +1433,7 @@ function ProfileContent({ userInfo, userPermissions, userAvatarUrl }: ProfileCon
                     <Stack w="100%" style={{ flexGrow: 1, minWidth: 0 }}>
                         <Tooltip
                             disabled={userPermissions?.includes("users:self:modify:email")}
-                            label="Email cannot be changed"
+                            label="Email cannot be changed. Contact an administrator for assistance."
                             withArrow
                         >
                             <TextInput

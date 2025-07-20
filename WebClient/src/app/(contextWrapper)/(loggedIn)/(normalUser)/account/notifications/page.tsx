@@ -388,6 +388,7 @@ export default function NotificationsPage() {
 
                                     Promise.all(ids.map((id) => archiveNotificationById(id, allArchived)))
                                         .then(() => {
+                                            setSelectAll(false);
                                             notifications.show({
                                                 id: `archive-${allArchived ? "un" : ""}all`,
                                                 title: allArchived

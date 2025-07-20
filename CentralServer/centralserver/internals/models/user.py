@@ -247,6 +247,12 @@ class UserCreate(SQLModel):
     username: str
     roleId: int
     password: str
+    email: EmailStr | None = None
+    nameFirst: str | None = None
+    nameMiddle: str | None = None
+    nameLast: str | None = None
+    position: str | None = None
+    schoolId: int | None = None
 
 
 class UserInvite(SQLModel):

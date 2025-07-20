@@ -55,6 +55,7 @@ async def create_new_user(
     new_user: UserCreate,
     token: logged_in_dep,
     session: Annotated[Session, Depends(get_db_session)],
+    background_tasks: BackgroundTasks,
 ) -> Response:
     """Create a new user in the database.
 
@@ -62,6 +63,7 @@ async def create_new_user(
         new_user: The new user's information.
         token: The decoded JWT token of the logged-in user.
         session: The database session.
+        background_tasks: Background tasks to run after the request is processed.
 
     Returns:
         A newly created user object.
@@ -94,7 +96,15 @@ async def create_new_user(
 
     logger.info("Creating new user: %s", new_user.username)
     logger.debug("Created by user: %s", token.id)
-    user = UserPublic.model_validate(await create_user(new_user, session))
+
+    # Auto-verify email if provided during creation (not invited users - they get different treatment)
+    email_verified = new_user.email is not None
+
+    user = UserPublic.model_validate(
+        await create_user(
+            new_user, session, background_tasks, email_verified=email_verified
+        )
+    )
     logger.debug("Returning new user information: %s", user)
     return Response(
         content=user.model_dump_json(),
@@ -304,22 +314,18 @@ async def invite_user(
                 username=new_user.username,
                 roleId=new_user.roleId,
                 password=genpass,
+                email=new_user.email,
+                nameFirst=new_user.nameFirst,
+                nameMiddle=new_user.nameMiddle,
+                nameLast=new_user.nameLast,
+                position=new_user.position,
+                schoolId=new_user.schoolId,
             ),
-            session,
+            background_tasks=background_tasks,
+            session=session,
+            send_notification=False,
+            email_verified=True,  # Auto-verify email for invited users
         )
-
-        logger.debug("Updating user information with the new user data")
-        created_user.nameFirst = new_user.nameFirst
-        created_user.nameMiddle = new_user.nameMiddle
-        created_user.nameLast = new_user.nameLast
-        created_user.position = new_user.position
-        created_user.schoolId = new_user.schoolId
-        created_user.email = new_user.email
-
-        logger.debug("Committing the new user to the database")
-        session.add(created_user)
-        session.commit()
-        session.refresh(created_user)
 
         logger.debug("User created successfully: %s", created_user.username)
         invited_user = UserPublic.model_validate(created_user)
