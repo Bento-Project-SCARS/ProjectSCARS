@@ -48,7 +48,7 @@
         "react-easy-crop": "^5.5.0",
         "react-scan": "^0.4.3",
         "react-use-websocket": "^4.13.0",
-        "recharts": "^2.13.3",
+        "recharts": "^3.1.0",
         "swapy": "^1.0.5"
     },
     "devDependencies": {
