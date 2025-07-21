@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
-import { AuthProvider } from "@/lib/providers/auth";
-import { UserProvider } from "@/lib/providers/user";
-import { DynamicThemeProvider } from "@/lib/providers/theme";
-import { useMantineColorScheme } from "@mantine/core";
 import { customLogger } from "@/lib/api/customLogger";
+import { AuthProvider } from "@/lib/providers/auth";
+import { DynamicThemeProvider } from "@/lib/providers/theme";
+import { UserProvider } from "@/lib/providers/user";
+import { WebSocketProvider } from "@/lib/providers/websocket";
+import { useMantineColorScheme } from "@mantine/core";
+import { useEffect } from "react";
 
 /**
  * ContextWrapperLayout component that wraps the application in context providers.
@@ -27,7 +28,9 @@ export default function ContextWrapperLayout({ children }: { children: React.Rea
     return (
         <DynamicThemeProvider>
             <AuthProvider>
-                <UserProvider>{children}</UserProvider>
+                <UserProvider>
+                    <WebSocketProvider>{children}</WebSocketProvider>
+                </UserProvider>
             </AuthProvider>
         </DynamicThemeProvider>
     );

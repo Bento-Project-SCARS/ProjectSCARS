@@ -33,6 +33,7 @@ import {
     Modal,
     Pagination,
     Paper,
+    ScrollArea,
     Select,
     Stack,
     Table,
@@ -49,7 +50,6 @@ import {
     IconEye,
     IconFileSad,
     IconFilter,
-    IconPencil,
     IconReceipt,
     IconSearch,
     IconTrash,
@@ -222,11 +222,6 @@ export default function ReportsPage() {
     const handleCloseDetailsModal = useCallback(() => {
         setDetailsModalOpened(false);
         setSelectedReport(null);
-    }, []);
-
-    const handleOpenEditModal = useCallback((report: MonthlyReport) => {
-        setSelectedReport(report);
-        setEditModalOpened(true);
     }, []);
 
     const handleCloseEditModal = useCallback(() => {
@@ -484,18 +479,19 @@ export default function ReportsPage() {
             style={{
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled ? 0.6 : 1,
+                height: "100%",
             }}
             onClick={disabled ? undefined : onClick}
         >
-            <Group>
+            <Group align="center" wrap="nowrap">
                 <ActionIcon size="xl" variant="light" color={disabled ? "gray" : color}>
                     <Icon size={24} />
                 </ActionIcon>
-                <div>
+                <div style={{ flex: 1 }}>
                     <Text fw={500} c={disabled ? "dimmed" : undefined}>
                         {title}
                     </Text>
-                    <Text size="sm" c="dimmed">
+                    <Text size="sm" c="dimmed" lineClamp={2}>
                         {disabled ? disabledReason || "Access restricted" : description}
                     </Text>
                 </div>
@@ -619,26 +615,6 @@ export default function ReportsPage() {
                                     >
                                         View
                                     </Menu.Item>
-                                    {canCreateReports &&
-                                        (report.reportStatus === "draft" || report.reportStatus === "rejected") && (
-                                            <>
-                                                <Menu.Item
-                                                    leftSection={<IconPencil size={14} />}
-                                                    onClick={() => handleOpenEditModal(report)}
-                                                >
-                                                    Edit
-                                                </Menu.Item>
-                                                <Menu.Divider />
-                                                <Menu.Item
-                                                    color="red"
-                                                    leftSection={<IconTrash size={14} />}
-                                                    onClick={() => handleDeleteReport(report.id)}
-                                                >
-                                                    Delete
-                                                </Menu.Item>
-                                            </>
-                                        )}
-                                    <Menu.Item leftSection={<IconDownload size={14} />}>Download</Menu.Item>
                                 </Menu.Dropdown>
                             </Menu>
                         </Table.Td>
@@ -650,9 +626,7 @@ export default function ReportsPage() {
             selectedReports,
             parsedSubmittedBySchools,
             handleSelectReport,
-            handleDeleteReport,
             handleOpenReportDetails,
-            handleOpenEditModal,
             handleReportStatusChange,
             canCreateReports,
             hasCompleteProfile,
@@ -709,256 +683,271 @@ export default function ReportsPage() {
     }, [hasPrincipalAssigned, userCtx.userInfo, isAssignedToSchool, hasCompleteProfile, schoolData]);
 
     return (
-        <Stack gap="lg">
-            {!canCreateReports && userCtx.userInfo?.roleId && (
-                <Alert variant="light" color="blue" title="Role-Based Access" icon={<IconAlertCircle size={16} />}>
-                    As a{" "}
-                    {userCtx.userInfo.roleId === 4
-                        ? "Principal"
-                        : userCtx.userInfo.roleId === 3
-                        ? "Administrator"
-                        : userCtx.userInfo.roleId === 2
-                        ? "Superintendent"
-                        : "non-Canteen Manager"}
-                    , you can view and manage reports but cannot create new ones. Only Canteen Managers can create
-                    reports.
-                </Alert>
-            )}
+        <Container size="xl" py={{ base: "sm", md: "md" }}>
+            <Stack gap="lg">
+                {!canCreateReports && userCtx.userInfo?.roleId && (
+                    <Alert variant="light" color="blue" title="Role-Based Access" icon={<IconAlertCircle size={16} />}>
+                        As a{" "}
+                        {userCtx.userInfo.roleId === 4
+                            ? "Principal"
+                            : userCtx.userInfo.roleId === 3
+                            ? "Administrator"
+                            : userCtx.userInfo.roleId === 2
+                            ? "Superintendent"
+                            : "non-Canteen Manager"}
+                        , you can view and manage reports but cannot create new ones. Only Canteen Managers can create
+                        reports.
+                    </Alert>
+                )}
 
-            {/* Quick Actions */}
-            <Paper shadow="xs" p="md">
-                <Grid>
-                    <Grid.Col span={4}>
-                        <QuickActionCard
-                            title="Daily Sales"
-                            description="Record today's sales"
-                            icon={IconCash}
-                            color="blue"
-                            onClick={handleNavigateToSales}
-                            disabled={
-                                !canCreateReports || !hasCompleteProfile || !isAssignedToSchool || !hasPrincipalAssigned
-                            }
-                            disabledReason={getDisabledReason()}
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={4}>
-                        <QuickActionCard
-                            title="Liquidation Report"
-                            description="Create liquidation report"
-                            icon={IconReceipt}
-                            color="green"
-                            onClick={() => setLiquidationModalOpened(true)}
-                            disabled={
-                                !canCreateReports || !hasCompleteProfile || !isAssignedToSchool || !hasPrincipalAssigned
-                            }
-                            disabledReason={getDisabledReason()}
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={4}>
-                        <QuickActionCard
-                            title="Payroll"
-                            description="Manage staff payroll"
-                            icon={IconUsers}
-                            color="violet"
-                            onClick={handleNavigateToPayroll}
-                            disabled={
-                                !canCreateReports || !hasCompleteProfile || !isAssignedToSchool || !hasPrincipalAssigned
-                            }
-                            disabledReason={getDisabledReason()}
-                        />
-                    </Grid.Col>
-                </Grid>
-            </Paper>
+                {/* Quick Actions */}
+                <Paper shadow="xs" p={{ base: "sm", md: "md" }}>
+                    <Grid gutter={{ base: "sm", md: "md" }}>
+                        <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+                            <QuickActionCard
+                                title="Daily Sales"
+                                description="Record today's sales"
+                                icon={IconCash}
+                                color="blue"
+                                onClick={handleNavigateToSales}
+                                disabled={
+                                    !canCreateReports ||
+                                    !hasCompleteProfile ||
+                                    !isAssignedToSchool ||
+                                    !hasPrincipalAssigned
+                                }
+                                disabledReason={getDisabledReason()}
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+                            <QuickActionCard
+                                title="Liquidation Report"
+                                description="Create liquidation report"
+                                icon={IconReceipt}
+                                color="green"
+                                onClick={() => setLiquidationModalOpened(true)}
+                                disabled={
+                                    !canCreateReports ||
+                                    !hasCompleteProfile ||
+                                    !isAssignedToSchool ||
+                                    !hasPrincipalAssigned
+                                }
+                                disabledReason={getDisabledReason()}
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={{ base: 12, sm: 6, md: 4 }}>
+                            <QuickActionCard
+                                title="Payroll"
+                                description="Manage staff payroll"
+                                icon={IconUsers}
+                                color="violet"
+                                onClick={handleNavigateToPayroll}
+                                disabled={
+                                    !canCreateReports ||
+                                    !hasCompleteProfile ||
+                                    !isAssignedToSchool ||
+                                    !hasPrincipalAssigned
+                                }
+                                disabledReason={getDisabledReason()}
+                            />
+                        </Grid.Col>
+                    </Grid>
+                </Paper>
 
-            {/* Filters and Search */}
-            <Paper shadow="xs" p="md">
-                <Flex gap="md" align="center" wrap="wrap">
-                    <TextInput
-                        placeholder="Type report name here"
-                        leftSection={<IconSearch size={16} />}
-                        value={search}
-                        onChange={(e) => setSearch(e.currentTarget.value)}
-                        style={{ flex: 1, minWidth: 200 }}
-                    />
-                    <Select
-                        placeholder="Filter by status"
-                        leftSection={<IconFilter size={16} />}
-                        value={statusFilter}
-                        onChange={(value) => setStatusFilter(value ?? "all")}
-                        data={[
-                            { value: "all", label: "All Status" },
-                            { value: "draft", label: "Draft" },
-                            { value: "review", label: "Under Review" },
-                            { value: "approved", label: "Approved" },
-                            { value: "rejected", label: "Rejected" },
-                            { value: "received", label: "Received" },
-                            { value: "archived", label: "Archived" },
-                        ]}
-                        w={180}
-                    />
-                    <Select
-                        placeholder="Filter by category"
-                        value={categoryFilter}
-                        onChange={(value) => setCategoryFilter(value ?? "all")}
-                        data={[
-                            { value: "all", label: "All Categories" },
-                            { value: "monthly-reports", label: "Monthly Reports" },
-                            { value: "daily-financial-reports", label: "Daily Financial Reports" },
-                            { value: "disbursement-vouchers", label: "Disbursement Vouchers" },
-                            { value: "operating-expenses", label: "Operating Expense Reports" },
-                            { value: "administrative-expenses", label: "Administrative Expense Reports" },
-                            { value: "payroll", label: "Payroll Reports" },
-                            { value: "clinic-fund", label: "Clinic Fund Reports" },
-                            { value: "supplementary-feeding-fund", label: "Supplementary Feeding Fund Reports" },
-                            { value: "he-fund", label: "HE Fund Reports" },
-                            {
-                                value: "faculty-student-development-fund",
-                                label: "Faculty & Student Development Fund Reports",
-                            },
-                            { value: "school-operation-fund", label: "School Operation Fund Reports" },
-                            { value: "revolving-fund", label: "Revolving Fund Reports" },
-                        ]}
-                        w={160}
-                    />
-                </Flex>
-            </Paper>
-
-            {/* Bulk Actions */}
-            {selectedReports.length > 0 && (
-                <Paper shadow="xs" p="md">
-                    <Flex align="center" gap="md">
-                        <Text size="sm">{selectedReports.length} reports selected</Text>
-                        <ActionIcon variant="light" size="sm" aria-label="Download">
-                            <IconDownload size={16} />
-                        </ActionIcon>
-                        {canCreateReports && (
-                            <ActionIcon variant="light" color="red" size="sm" aria-label="Delete">
-                                <IconTrash size={16} />
-                            </ActionIcon>
-                        )}
+                {/* Filters and Search */}
+                <Paper shadow="xs" p={{ base: "sm", md: "md" }}>
+                    <Flex gap="md" align="center" wrap="wrap">
+                        <TextInput
+                            placeholder="Type report name here"
+                            leftSection={<IconSearch size={16} />}
+                            value={search}
+                            onChange={(e) => setSearch(e.currentTarget.value)}
+                            style={{ flex: 1, minWidth: 200 }}
+                        />
+                        <Select
+                            placeholder="Filter by status"
+                            leftSection={<IconFilter size={16} />}
+                            value={statusFilter}
+                            onChange={(value) => setStatusFilter(value ?? "all")}
+                            data={[
+                                { value: "all", label: "All Status" },
+                                { value: "draft", label: "Draft" },
+                                { value: "review", label: "Under Review" },
+                                { value: "approved", label: "Approved" },
+                                { value: "rejected", label: "Rejected" },
+                                { value: "received", label: "Received" },
+                                { value: "archived", label: "Archived" },
+                            ]}
+                            w={{ base: "auto", sm: 180 }}
+                        />
+                        <Select
+                            placeholder="Filter by category"
+                            value={categoryFilter}
+                            onChange={(value) => setCategoryFilter(value ?? "all")}
+                            data={[
+                                { value: "all", label: "All Categories" },
+                                { value: "monthly-reports", label: "Monthly Reports" },
+                                { value: "daily-financial-reports", label: "Daily Financial Reports" },
+                                { value: "disbursement-vouchers", label: "Disbursement Vouchers" },
+                                { value: "operating-expenses", label: "Operating Expense Reports" },
+                                { value: "administrative-expenses", label: "Administrative Expense Reports" },
+                                { value: "payroll", label: "Payroll Reports" },
+                                { value: "clinic-fund", label: "Clinic Fund Reports" },
+                                { value: "supplementary-feeding-fund", label: "Supplementary Feeding Fund Reports" },
+                                { value: "he-fund", label: "HE Fund Reports" },
+                                {
+                                    value: "faculty-student-development-fund",
+                                    label: "Faculty & Student Development Fund Reports",
+                                },
+                                { value: "school-operation-fund", label: "School Operation Fund Reports" },
+                                { value: "revolving-fund", label: "Revolving Fund Reports" },
+                            ]}
+                            w={{ base: "auto", sm: 160 }}
+                        />
                     </Flex>
                 </Paper>
-            )}
 
-            {/* Reports Table */}
-            <Paper shadow="xs">
-                <Table highlightOnHover>
-                    <Table.Thead>
-                        <Table.Tr>
-                            <Table.Th>
-                                <Checkbox
-                                    checked={
-                                        selectedReports.length === filteredReports.length && filteredReports.length > 0
-                                    }
-                                    indeterminate={
-                                        selectedReports.length > 0 && selectedReports.length < filteredReports.length
-                                    }
-                                    onChange={(e) => handleSelectAll(e.currentTarget.checked)}
-                                    disabled={loading}
-                                />
-                            </Table.Th>
-                            <Table.Th>Report Name</Table.Th>
-                            <Table.Th>Status</Table.Th>
-                            <Table.Th>Period</Table.Th>
-                            <Table.Th>Last Modified</Table.Th>
-                            <Table.Th></Table.Th>
-                        </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody style={{ opacity: loading ? 0.5 : 1 }}>
-                        {loading ? (
-                            <Table.Tr>
-                                <Table.Td colSpan={6} style={{ textAlign: "center", padding: "2rem" }}>
-                                    <Text c="dimmed">Loading reports...</Text>
-                                </Table.Td>
-                            </Table.Tr>
-                        ) : (
-                            rows
-                        )}
-                    </Table.Tbody>
-                </Table>
-
-                {!loading && filteredReports.length === 0 && (
-                    <Paper p="xl" ta="center">
-                        {userAssignedToSchool ? (
-                            <Container size="xl" mt={50} style={{ textAlign: "center" }}>
-                                <IconFileSad
-                                    size={64}
-                                    style={{ margin: "auto", display: "block" }}
-                                    color="var(--mantine-color-dimmed)"
-                                />
-                                <Text size="lg" mt="xl" c="dimmed">
-                                    No Reports Found
-                                </Text>
-                            </Container>
-                        ) : (
-                            <Container size="xl" mt={50} style={{ textAlign: "center" }}>
-                                <IconBuildings
-                                    size={64}
-                                    style={{ margin: "auto", display: "block" }}
-                                    color="var(--mantine-color-dimmed)"
-                                />
-                                <Text size="lg" mt="xl" c="dimmed">
-                                    You are not assigned to any school
-                                </Text>
-                            </Container>
-                        )}
+                {/* Bulk Actions */}
+                {selectedReports.length > 0 && (
+                    <Paper shadow="xs" p="md">
+                        <Flex align="center" gap="md">
+                            <Text size="sm">{selectedReports.length} reports selected</Text>
+                            <ActionIcon variant="light" size="sm" aria-label="Download">
+                                <IconDownload size={16} />
+                            </ActionIcon>
+                            {canCreateReports && (
+                                <ActionIcon variant="light" color="red" size="sm" aria-label="Delete">
+                                    <IconTrash size={16} />
+                                </ActionIcon>
+                            )}
+                        </Flex>
                     </Paper>
                 )}
-            </Paper>
 
-            {/* Pagination */}
-            {totalReports > 0 && (
-                <Group justify="center">
-                    <Pagination
-                        total={totalPages}
-                        value={currentPage}
-                        onChange={setCurrentPage}
-                        size="sm"
-                        disabled={loading}
-                    />
-                </Group>
-            )}
+                {/* Reports Table */}
+                <Paper shadow="xs">
+                    <ScrollArea>
+                        <Table highlightOnHover>
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th>
+                                        <Checkbox
+                                            checked={
+                                                selectedReports.length === filteredReports.length &&
+                                                filteredReports.length > 0
+                                            }
+                                            indeterminate={
+                                                selectedReports.length > 0 &&
+                                                selectedReports.length < filteredReports.length
+                                            }
+                                            onChange={(e) => handleSelectAll(e.currentTarget.checked)}
+                                            disabled={loading}
+                                        />
+                                    </Table.Th>
+                                    <Table.Th>Report Name</Table.Th>
+                                    <Table.Th>Status</Table.Th>
+                                    <Table.Th>Period</Table.Th>
+                                    <Table.Th>Last Modified</Table.Th>
+                                    <Table.Th></Table.Th>
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody style={{ opacity: loading ? 0.5 : 1 }}>
+                                {loading ? (
+                                    <Table.Tr>
+                                        <Table.Td colSpan={6} style={{ textAlign: "center", padding: "2rem" }}>
+                                            <Text c="dimmed">Loading reports...</Text>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ) : (
+                                    rows
+                                )}
+                            </Table.Tbody>
+                        </Table>
+                    </ScrollArea>
 
-            {/* Liquidation Report Modal */}
-            <LiquidationReportModal
-                opened={liquidationModalOpened}
-                onClose={() => setLiquidationModalOpened(false)}
-                onSelect={handleCreateLiquidationReport}
-            />
+                    {!loading && filteredReports.length === 0 && (
+                        <Paper p="xl" ta="center">
+                            {userAssignedToSchool ? (
+                                <Container size="xl" mt={50} style={{ textAlign: "center" }}>
+                                    <IconFileSad
+                                        size={64}
+                                        style={{ margin: "auto", display: "block" }}
+                                        color="var(--mantine-color-dimmed)"
+                                    />
+                                    <Text size="lg" mt="xl" c="dimmed">
+                                        No Reports Found
+                                    </Text>
+                                </Container>
+                            ) : (
+                                <Container size="xl" mt={50} style={{ textAlign: "center" }}>
+                                    <IconBuildings
+                                        size={64}
+                                        style={{ margin: "auto", display: "block" }}
+                                        color="var(--mantine-color-dimmed)"
+                                    />
+                                    <Text size="lg" mt="xl" c="dimmed">
+                                        You are not assigned to any school
+                                    </Text>
+                                </Container>
+                            )}
+                        </Paper>
+                    )}
+                </Paper>
 
-            {/* Monthly Report Details Modal */}
-            <MonthlyReportDetailsModal
-                opened={detailsModalOpened}
-                onClose={handleCloseDetailsModal}
-                report={selectedReport}
-                onDelete={handleDeleteReport}
-            />
-
-            {/* Monthly Report Edit Modal */}
-            <MonthlyReportEditModal
-                opened={editModalOpened}
-                onClose={handleCloseEditModal}
-                report={selectedReport}
-                onUpdate={handleReportUpdate}
-            />
-
-            {/* Delete Confirmation Modal */}
-            <Modal opened={deleteConfirmModalOpened} onClose={cancelDeleteReport} title="Confirm Deletion" centered>
-                <Stack gap="md">
-                    <Text>
-                        Are you sure you want to delete this monthly report? This action cannot be undone and will
-                        permanently remove the report and all related data.
-                    </Text>
-                    <Group justify="flex-end" gap="sm">
-                        <Button variant="default" onClick={cancelDeleteReport}>
-                            Cancel
-                        </Button>
-                        <Button color="red" onClick={confirmDeleteReport}>
-                            Delete Report
-                        </Button>
+                {/* Pagination */}
+                {totalReports > 0 && (
+                    <Group justify="center">
+                        <Pagination
+                            total={totalPages}
+                            value={currentPage}
+                            onChange={setCurrentPage}
+                            size="sm"
+                            disabled={loading}
+                        />
                     </Group>
-                </Stack>
-            </Modal>
-        </Stack>
+                )}
+
+                {/* Liquidation Report Modal */}
+                <LiquidationReportModal
+                    opened={liquidationModalOpened}
+                    onClose={() => setLiquidationModalOpened(false)}
+                    onSelect={handleCreateLiquidationReport}
+                />
+
+                {/* Monthly Report Details Modal */}
+                <MonthlyReportDetailsModal
+                    opened={detailsModalOpened}
+                    onClose={handleCloseDetailsModal}
+                    report={selectedReport}
+                    onDelete={handleDeleteReport}
+                />
+
+                {/* Monthly Report Edit Modal */}
+                <MonthlyReportEditModal
+                    opened={editModalOpened}
+                    onClose={handleCloseEditModal}
+                    report={selectedReport}
+                    onUpdate={handleReportUpdate}
+                />
+
+                {/* Delete Confirmation Modal */}
+                <Modal opened={deleteConfirmModalOpened} onClose={cancelDeleteReport} title="Confirm Deletion" centered>
+                    <Stack gap="md">
+                        <Text>
+                            Are you sure you want to delete this monthly report? This action cannot be undone and will
+                            permanently remove the report and all related data.
+                        </Text>
+                        <Group justify="flex-end" gap="sm">
+                            <Button variant="default" onClick={cancelDeleteReport}>
+                                Cancel
+                            </Button>
+                            <Button color="red" onClick={confirmDeleteReport}>
+                                Delete Report
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Modal>
+            </Stack>
+        </Container>
     );
 }

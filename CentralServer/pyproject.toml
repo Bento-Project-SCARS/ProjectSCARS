@@ -21,6 +21,7 @@ dependencies = [
     "sqlmodel>=0.0.24",
     "types-pillow>=10.2.0.20240822",
     "uvicorn>=0.34.0",
+    "websockets>=13.1",
 ]
 
 [project.optional-dependencies]

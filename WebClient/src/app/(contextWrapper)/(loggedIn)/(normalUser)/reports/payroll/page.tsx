@@ -22,6 +22,7 @@ import {
     Button,
     Card,
     Checkbox,
+    Container,
     Divider,
     Flex,
     Group,
@@ -119,11 +120,29 @@ function PayrollPageContent() {
 
     const effectiveSchoolId = getEffectiveSchoolId();
 
+    // Helper function to get initial month from URL parameters or default to current month
+    const getInitialMonth = useCallback(() => {
+        const yearParam = searchParams.get("year");
+        const monthParam = searchParams.get("month");
+
+        if (yearParam && monthParam) {
+            const year = parseInt(yearParam, 10);
+            const month = parseInt(monthParam, 10);
+
+            // Validate year and month
+            if (!isNaN(year) && !isNaN(month) && month >= 1 && month <= 12) {
+                return new Date(year, month - 1); // month is 0-indexed in Date constructor
+            }
+        }
+
+        return new Date(); // Default to current month
+    }, [searchParams]);
+
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [weekPeriods, setWeekPeriods] = useState<WeekPeriod[]>([]);
     const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
     const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
-    const [selectedMonth, setSelectedMonth] = useState<Date | null>(new Date());
+    const [selectedMonth, setSelectedMonth] = useState<Date | null>(getInitialMonth());
     const [workingDaysSchedule, setworkingDaysSchedule] = useState<number[]>([1, 2, 3, 4, 5]); // Monday to Friday by default
 
     const [employeeModalOpened, setEmployeeModalOpened] = useState(false);
@@ -194,6 +213,17 @@ function PayrollPageContent() {
         const dayOfWeek = dayjs(date).day(); // 0 = Sunday, 6 = Saturday
         return dayOfWeek === 0 || dayOfWeek === 6;
     }, []);
+
+    // Update selected month when URL parameters change
+    useEffect(() => {
+        const newMonth = getInitialMonth();
+        setSelectedMonth((prev) => {
+            if (newMonth.getTime() !== (prev?.getTime() || 0)) {
+                return newMonth;
+            }
+            return prev;
+        });
+    }, [getInitialMonth]);
 
     useEffect(() => {
         if (weekPeriods.length > 0 && !selectedWeekId) {
@@ -666,7 +696,7 @@ function PayrollPageContent() {
     };
 
     const handleClose = () => {
-        router.push("/reports");
+        router.back();
     };
 
     // Signature management handlers
@@ -1607,351 +1637,361 @@ function PayrollPageContent() {
     const selectedWeek = weekPeriods.find((w) => w.id === selectedWeekId);
 
     return (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6">
-            <Stack gap="lg">
-                {/* Header */}
-                <Flex justify="space-between" align="center" className="flex-col sm:flex-row gap-4">
-                    <Group gap="md">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <IconReceipt2 size={36} />
-                        </div>
-                        <div>
-                            <Title order={2} className="text-gray-800">
-                                Payroll for {dayjs(selectedMonth).format("MMMM YYYY")}
-                            </Title>
-                            <Text size="sm" c="dimmed">
-                                Manage staff payroll
-                                {isLoadingExistingReport && " • Loading existing data..."}
-                            </Text>
-                            {isUnderReview() && (
-                                <Badge color="orange" variant="light" size="sm" mt="xs">
-                                    Read-Only Mode - Report Under Review
-                                </Badge>
-                            )}
-                            {reportStatus === "approved" && (
-                                <Badge color="green" variant="light" size="sm" mt="xs">
-                                    Report Approved
-                                </Badge>
-                            )}
-                        </div>
-                    </Group>
-                    <Group gap="md">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="lg"
-                            onClick={handleClose}
-                            className="hover:bg-gray-100"
-                        >
-                            <IconX size={20} />
-                        </ActionIcon>
-                    </Group>
-                </Flex>
+        <Container size="xl" py={{ base: "sm", sm: "md", lg: "xl" }}>
+            <div className="max-w-7xl mx-auto p-4 sm:p-6">
+                <Stack gap="lg">
+                    {/* Header */}
+                    <Flex justify="space-between" align="center" direction={{ base: "column", sm: "row" }} gap="md">
+                        <Group gap="md" wrap="wrap">
+                            <div className="p-2 bg-blue-100 rounded-lg">
+                                <IconReceipt2 size={36} />
+                            </div>
+                            <div>
+                                <Title order={2} className="text-gray-800">
+                                    Payroll for {dayjs(selectedMonth).format("MMMM YYYY")}
+                                </Title>
+                                <Text size="sm" c="dimmed">
+                                    Manage staff payroll
+                                    {isLoadingExistingReport && " • Loading existing data..."}
+                                </Text>
+                                {isUnderReview() && (
+                                    <Badge color="orange" variant="light" size="sm" mt="xs">
+                                        Read-Only Mode - Report Under Review
+                                    </Badge>
+                                )}
+                                {reportStatus === "approved" && (
+                                    <Badge color="green" variant="light" size="sm" mt="xs">
+                                        Report Approved
+                                    </Badge>
+                                )}
+                            </div>
+                        </Group>
+                        <Group gap="md" wrap="wrap">
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="lg"
+                                onClick={handleClose}
+                                className="hover:bg-gray-100"
+                            >
+                                <IconX size={20} />
+                            </ActionIcon>
+                        </Group>
+                    </Flex>
 
-                {/* Loading indicator */}
-                {isLoadingExistingReport && (
+                    {/* Loading indicator */}
+                    {isLoadingExistingReport && (
+                        <Card withBorder>
+                            <Group gap="md" justify="center" p="md">
+                                <Loader size="sm" />
+                                <Text size="sm" c="dimmed">
+                                    Loading existing payroll data for {dayjs(selectedMonth).format("MMMM YYYY")}...
+                                </Text>
+                            </Group>
+                        </Card>
+                    )}
+
+                    {/* Month Selection & Working Days */}
                     <Card withBorder>
-                        <Group gap="md" justify="center" p="md">
-                            <Loader size="sm" />
-                            <Text size="sm" c="dimmed">
-                                Loading existing payroll data for {dayjs(selectedMonth).format("MMMM YYYY")}...
-                            </Text>
+                        <Stack gap="md">
+                            <Group justify="space-between" align="center" className="flex-col sm:flex-row gap-4">
+                                <Text fw={500}>Period Covered</Text>
+                                <MonthPickerInput
+                                    placeholder="Select month"
+                                    value={selectedMonth}
+                                    onChange={(value) => {
+                                        setSelectedMonth(value ? dayjs(value).toDate() : null);
+                                    }}
+                                    leftSection={<IconCalendar size={16} />}
+                                    className="w-full sm:w-64"
+                                    valueFormat="MMMM YYYY"
+                                    required
+                                />
+                            </Group>
+
+                            <Divider />
+
+                            <Group justify="space-between" align="center" className="flex-col sm:flex-row gap-4">
+                                <Text fw={500} size="sm">
+                                    Working Days
+                                </Text>
+                                <Group gap="xs">
+                                    {[, "M", "T", "W", "T", "F"].map((day, index) => (
+                                        <ActionIcon
+                                            disabled={isReadOnly()}
+                                            key={`${day}-${index}`}
+                                            size="sm"
+                                            variant={workingDaysSchedule.includes(index) ? "filled" : "outline"}
+                                            color={workingDaysSchedule.includes(index) ? "blue" : "gray"}
+                                            onClick={() => {
+                                                if (workingDaysSchedule.includes(index)) {
+                                                    setworkingDaysSchedule((prev) => prev.filter((d) => d !== index));
+                                                } else {
+                                                    setworkingDaysSchedule((prev) => [...prev, index].sort());
+                                                }
+                                            }}
+                                            title={
+                                                [
+                                                    // "Sunday",
+                                                    "Monday",
+                                                    "Tuesday",
+                                                    "Wednesday",
+                                                    "Thursday",
+                                                    "Friday",
+                                                    // "Saturday",
+                                                ][index]
+                                            }
+                                        >
+                                            {day}
+                                        </ActionIcon>
+                                    ))}
+                                </Group>
+                            </Group>
+                        </Stack>
+                    </Card>
+
+                    {/* Employees Management */}
+                    <Card withBorder>
+                        <Group justify="space-between" align="center">
+                            <Group gap="sm">
+                                <IconUsers size={20} />
+                                <Text fw={500}>Canteen Helpers</Text>
+                                <Badge variant="light" size="sm">
+                                    {employees.length} employees
+                                </Badge>
+                            </Group>
+                            <Button
+                                leftSection={<IconUsers size={16} />}
+                                onClick={() => setEmployeeModalOpened(true)}
+                                variant="light"
+                                className="bg-blue-50 hover:bg-blue-100"
+                            >
+                                Manage
+                            </Button>
                         </Group>
                     </Card>
-                )}
 
-                {/* Month Selection & Working Days */}
-                <Card withBorder>
-                    <Stack gap="md">
-                        <Group justify="space-between" align="center" className="flex-col sm:flex-row gap-4">
-                            <Text fw={500}>Period Covered</Text>
-                            <MonthPickerInput
-                                placeholder="Select month"
-                                value={selectedMonth}
-                                onChange={(value) => {
-                                    setSelectedMonth(value ? dayjs(value).toDate() : null);
-                                }}
-                                leftSection={<IconCalendar size={16} />}
-                                className="w-full sm:w-64"
-                                valueFormat="MMMM YYYY"
-                                maxDate={new Date()}
-                                required
-                            />
+                    {/* Week Periods Management */}
+                    <Card withBorder>
+                        <Group justify="space-between" align="center" mb="md">
+                            <Group gap="sm">
+                                <IconCalendarWeek size={20} />
+                                <Text fw={500}>Weekly Periods</Text>
+                            </Group>
                         </Group>
-
-                        <Divider />
-
-                        <Group justify="space-between" align="center" className="flex-col sm:flex-row gap-4">
-                            <Text fw={500} size="sm">
-                                Working Days
-                            </Text>
-                            <Group gap="xs">
-                                {[, "M", "T", "W", "T", "F"].map((day, index) => (
-                                    <ActionIcon
-                                        disabled={isReadOnly()}
-                                        key={`${day}-${index}`}
-                                        size="sm"
-                                        variant={workingDaysSchedule.includes(index) ? "filled" : "outline"}
-                                        color={workingDaysSchedule.includes(index) ? "blue" : "gray"}
-                                        onClick={() => {
-                                            if (workingDaysSchedule.includes(index)) {
-                                                setworkingDaysSchedule((prev) => prev.filter((d) => d !== index));
-                                            } else {
-                                                setworkingDaysSchedule((prev) => [...prev, index].sort());
-                                            }
-                                        }}
-                                        title={
-                                            [
-                                                // "Sunday",
-                                                "Monday",
-                                                "Tuesday",
-                                                "Wednesday",
-                                                "Thursday",
-                                                "Friday",
-                                                // "Saturday",
-                                            ][index]
+                        <ScrollArea className="flex-1">
+                            <Group gap="xs" wrap="nowrap" className="min-w-fit">
+                                {weekPeriods.map((week) => (
+                                    <Button
+                                        key={week.id}
+                                        variant={selectedWeekId === week.id ? "filled" : "outline"}
+                                        color={
+                                            week.isCompleted ? "green" : selectedWeekId === week.id ? "blue" : "gray"
                                         }
+                                        size="sm"
+                                        onClick={() => setSelectedWeekId(week.id)}
+                                        className="whitespace-nowrap flex-shrink-0"
                                     >
-                                        {day}
-                                    </ActionIcon>
+                                        {week.label.replace("WEEK ", "W").split(" /")[0]}
+                                    </Button>
                                 ))}
                             </Group>
-                        </Group>
-                    </Stack>
-                </Card>
-
-                {/* Employees Management */}
-                <Card withBorder>
-                    <Group justify="space-between" align="center">
-                        <Group gap="sm">
-                            <IconUsers size={20} />
-                            <Text fw={500}>Canteen Helpers</Text>
-                            <Badge variant="light" size="sm">
-                                {employees.length} employees
-                            </Badge>
-                        </Group>
-                        <Button
-                            leftSection={<IconUsers size={16} />}
-                            onClick={() => setEmployeeModalOpened(true)}
-                            variant="light"
-                            className="bg-blue-50 hover:bg-blue-100"
-                        >
-                            Manage
-                        </Button>
-                    </Group>
-                </Card>
-
-                {/* Week Periods Management */}
-                <Card withBorder>
-                    <Group justify="space-between" align="center" mb="md">
-                        <Group gap="sm">
-                            <IconCalendarWeek size={20} />
-                            <Text fw={500}>Weekly Periods</Text>
-                        </Group>
-                    </Group>
-                    <ScrollArea className="flex-1">
-                        <Group gap="xs" wrap="nowrap" className="min-w-fit">
-                            {weekPeriods.map((week) => (
-                                <Button
-                                    key={week.id}
-                                    variant={selectedWeekId === week.id ? "filled" : "outline"}
-                                    color={week.isCompleted ? "green" : selectedWeekId === week.id ? "blue" : "gray"}
-                                    size="sm"
-                                    onClick={() => setSelectedWeekId(week.id)}
-                                    className="whitespace-nowrap flex-shrink-0"
-                                >
-                                    {week.label.replace("WEEK ", "W").split(" /")[0]}
-                                </Button>
-                            ))}
-                        </Group>
-                    </ScrollArea>
-                </Card>
-
-                {/* Weekly Attendance Table */}
-                {selectedWeek && employees.length > 0 && (
-                    <Card withBorder>
-                        <Group justify="space-between" className="mb-4">
-                            <Group gap="sm">
-                                <Text fw={500}>{selectedWeek.label}</Text>
-                            </Group>
-                            <Text className="text-right">
-                                <Text component="span" size="sm" c="dimmed">
-                                    Total Week Amount: ₱
-                                    {weekPeriods.find((w) => w.id === selectedWeekId)
-                                        ? employees
-                                              .reduce(
-                                                  (total, emp) => total + calculateWeeklyTotal(emp.id, selectedWeekId!),
-                                                  0
-                                              )
-                                              .toLocaleString("en-US", {
-                                                  minimumFractionDigits: 2,
-                                                  maximumFractionDigits: 2,
-                                              })
-                                        : "0.00"}
-                                </Text>
-                            </Text>
-                        </Group>
-                        <Divider my="md" />
-                        <ScrollArea>
-                            <Table striped highlightOnHover style={{ minWidth: "600px" }}>
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th>NAME</Table.Th>
-                                        {selectedWeek.workingDays.map((date) => (
-                                            <Table.Th key={date.toISOString()} className="text-center">
-                                                <div>
-                                                    <Text size="xs" fw={600}>
-                                                        {dayjs(date).format("ddd")}
-                                                    </Text>
-                                                    <Text size="xs" c="dimmed">
-                                                        {dayjs(date).format("MM/DD")}
-                                                    </Text>
-                                                </div>
-                                            </Table.Th>
-                                        ))}
-                                        <Table.Th className="text-center">TOTAL</Table.Th>
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {employees.map((employee) => (
-                                        <Table.Tr key={employee.id}>
-                                            <Table.Td>
-                                                <div>
-                                                    <Text size="sm" fw={600}>
-                                                        {employee.name}
-                                                    </Text>
-                                                    <Text size="xs" c="dimmed">
-                                                        ₱{employee.defaultDailyRate}/day
-                                                    </Text>
-                                                </div>
-                                            </Table.Td>
-                                            {selectedWeek.workingDays.map((date) => {
-                                                const isPresent = getAttendanceStatus(employee.id, date);
-                                                const dateKey = dayjs(date).format("YYYY-MM-DD");
-                                                const record = attendanceRecords.find(
-                                                    (r) => r.employeeId === employee.id && r.date === dateKey
-                                                );
-                                                const displayRate =
-                                                    record?.customDailyRate || employee.defaultDailyRate;
-                                                const hasCustomRate = record?.customDailyRate !== undefined;
-
-                                                // Check if this date should be disabled
-                                                const isWeekendDate = isWeekend(date);
-                                                const isFutureDate = dayjs(date).isAfter(dayjs(), "day");
-                                                const shouldDisableDate = isWeekendDate || isFutureDate;
-
-                                                return (
-                                                    <Table.Td key={date.toISOString()} className="text-center">
-                                                        <div className="flex flex-col gap-1">
-                                                            <div className="relative">
-                                                                <Button
-                                                                    size="xs"
-                                                                    variant={isPresent ? "filled" : "outline"}
-                                                                    color={
-                                                                        shouldDisableDate
-                                                                            ? "gray"
-                                                                            : isPresent
-                                                                            ? "green"
-                                                                            : "gray"
-                                                                    }
-                                                                    onClick={() => toggleAttendance(employee.id, date)}
-                                                                    onContextMenu={(e) => {
-                                                                        e.preventDefault();
-                                                                        if (
-                                                                            !selectedWeek.isCompleted &&
-                                                                            !shouldDisableDate
-                                                                        ) {
-                                                                            openCustomRateModal(employee.id, date);
-                                                                        }
-                                                                    }}
-                                                                    className="w-16"
-                                                                    disabled={
-                                                                        selectedWeek.isCompleted ||
-                                                                        isReadOnly() ||
-                                                                        shouldDisableDate
-                                                                    }
-                                                                    title={
-                                                                        shouldDisableDate
-                                                                            ? isWeekendDate
-                                                                                ? "Weekends not allowed"
-                                                                                : "Future dates not allowed"
-                                                                            : "Left click: Mark attendance \nRight click: Set custom rate"
-                                                                    }
-                                                                >
-                                                                    {isPresent ? `₱${displayRate}` : " - "}
-                                                                </Button>
-                                                                {hasCustomRate && (
-                                                                    <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full"></div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </Table.Td>
-                                                );
-                                            })}
-                                            <Table.Td className="text-center">
-                                                <Text fw={500}>
-                                                    ₱
-                                                    {calculateWeeklyTotal(employee.id, selectedWeek.id).toLocaleString(
-                                                        "en-US",
-                                                        {
-                                                            minimumFractionDigits: 2,
-                                                            maximumFractionDigits: 2,
-                                                        }
-                                                    )}
-                                                </Text>
-                                            </Table.Td>
-                                        </Table.Tr>
-                                    ))}
-                                </Table.Tbody>
-                            </Table>
                         </ScrollArea>
                     </Card>
-                )}
 
-                {/* Monthly Summary with Signatures */}
-                {employees.length > 0 && weekPeriods.length > 0 && (
-                    <Card withBorder>
-                        <Text fw={500}>
-                            MONTH OF{" "}
-                            {selectedMonth ? dayjs(selectedMonth).format("MMMM, YYYY").toUpperCase() : "SELECT MONTH"}
-                        </Text>
-                        <Divider my="md" />
-
-                        <ScrollArea>
-                            <Table striped highlightOnHover style={{ minWidth: "800px" }}>
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th style={{ width: "50px" }}>#</Table.Th>
-                                        <Table.Th style={{ width: "250px" }}>Name</Table.Th>
-                                        <Table.Th style={{ width: "200px" }}>Total Amount Received</Table.Th>
-                                        {/* <Table.Th style={{ width: "50px" }}>Signature</Table.Th> */}
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {employees.map((employee, index) => {
-                                        // const signature = getEmployeeSignature(employee.id);
-                                        return (
+                    {/* Weekly Attendance Table */}
+                    {selectedWeek && employees.length > 0 && (
+                        <Card withBorder>
+                            <Group justify="space-between" className="mb-4">
+                                <Group gap="sm">
+                                    <Text fw={500}>{selectedWeek.label}</Text>
+                                </Group>
+                                <Text className="text-right">
+                                    <Text component="span" size="sm" c="dimmed">
+                                        Total Week Amount: ₱
+                                        {weekPeriods.find((w) => w.id === selectedWeekId)
+                                            ? employees
+                                                  .reduce(
+                                                      (total, emp) =>
+                                                          total + calculateWeeklyTotal(emp.id, selectedWeekId!),
+                                                      0
+                                                  )
+                                                  .toLocaleString("en-US", {
+                                                      minimumFractionDigits: 2,
+                                                      maximumFractionDigits: 2,
+                                                  })
+                                            : "0.00"}
+                                    </Text>
+                                </Text>
+                            </Group>
+                            <Divider my="md" />
+                            <ScrollArea>
+                                <Table striped highlightOnHover style={{ minWidth: "600px" }}>
+                                    <Table.Thead>
+                                        <Table.Tr>
+                                            <Table.Th>NAME</Table.Th>
+                                            {selectedWeek.workingDays.map((date) => (
+                                                <Table.Th key={date.toISOString()} className="text-center">
+                                                    <div>
+                                                        <Text size="xs" fw={600}>
+                                                            {dayjs(date).format("ddd")}
+                                                        </Text>
+                                                        <Text size="xs" c="dimmed">
+                                                            {dayjs(date).format("MM/DD")}
+                                                        </Text>
+                                                    </div>
+                                                </Table.Th>
+                                            ))}
+                                            <Table.Th className="text-center">TOTAL</Table.Th>
+                                        </Table.Tr>
+                                    </Table.Thead>
+                                    <Table.Tbody>
+                                        {employees.map((employee) => (
                                             <Table.Tr key={employee.id}>
                                                 <Table.Td>
-                                                    <Text size="sm" fw={500}>
-                                                        {index + 1}.
-                                                    </Text>
+                                                    <div>
+                                                        <Text size="sm" fw={600}>
+                                                            {employee.name}
+                                                        </Text>
+                                                        <Text size="xs" c="dimmed">
+                                                            ₱{employee.defaultDailyRate}/day
+                                                        </Text>
+                                                    </div>
                                                 </Table.Td>
-                                                <Table.Td>
-                                                    <Text size="sm" fw={500} className="uppercase">
-                                                        {employee.name}
-                                                    </Text>
-                                                </Table.Td>
-                                                <Table.Td>
-                                                    <Text size="sm" fw={500}>
+                                                {selectedWeek.workingDays.map((date) => {
+                                                    const isPresent = getAttendanceStatus(employee.id, date);
+                                                    const dateKey = dayjs(date).format("YYYY-MM-DD");
+                                                    const record = attendanceRecords.find(
+                                                        (r) => r.employeeId === employee.id && r.date === dateKey
+                                                    );
+                                                    const displayRate =
+                                                        record?.customDailyRate || employee.defaultDailyRate;
+                                                    const hasCustomRate = record?.customDailyRate !== undefined;
+
+                                                    // Check if this date should be disabled
+                                                    const isWeekendDate = isWeekend(date);
+                                                    const isFutureDate = dayjs(date).isAfter(dayjs(), "day");
+                                                    const shouldDisableDate = isWeekendDate || isFutureDate;
+
+                                                    return (
+                                                        <Table.Td key={date.toISOString()} className="text-center">
+                                                            <div className="flex flex-col gap-1">
+                                                                <div className="relative">
+                                                                    <Button
+                                                                        size="xs"
+                                                                        variant={isPresent ? "filled" : "outline"}
+                                                                        color={
+                                                                            shouldDisableDate
+                                                                                ? "gray"
+                                                                                : isPresent
+                                                                                ? "green"
+                                                                                : "gray"
+                                                                        }
+                                                                        onClick={() =>
+                                                                            toggleAttendance(employee.id, date)
+                                                                        }
+                                                                        onContextMenu={(e) => {
+                                                                            e.preventDefault();
+                                                                            if (
+                                                                                !selectedWeek.isCompleted &&
+                                                                                !shouldDisableDate
+                                                                            ) {
+                                                                                openCustomRateModal(employee.id, date);
+                                                                            }
+                                                                        }}
+                                                                        className="w-16"
+                                                                        disabled={
+                                                                            selectedWeek.isCompleted ||
+                                                                            isReadOnly() ||
+                                                                            shouldDisableDate
+                                                                        }
+                                                                        title={
+                                                                            shouldDisableDate
+                                                                                ? isWeekendDate
+                                                                                    ? "Weekends not allowed"
+                                                                                    : "Future dates not allowed"
+                                                                                : "Left click: Mark attendance \nRight click: Set custom rate"
+                                                                        }
+                                                                    >
+                                                                        {isPresent ? `₱${displayRate}` : " - "}
+                                                                    </Button>
+                                                                    {hasCustomRate && (
+                                                                        <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full"></div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </Table.Td>
+                                                    );
+                                                })}
+                                                <Table.Td className="text-center">
+                                                    <Text fw={500}>
                                                         ₱
-                                                        {calculateMonthlyTotal(employee.id).toLocaleString("en-US", {
+                                                        {calculateWeeklyTotal(
+                                                            employee.id,
+                                                            selectedWeek.id
+                                                        ).toLocaleString("en-US", {
                                                             minimumFractionDigits: 2,
                                                             maximumFractionDigits: 2,
                                                         })}
                                                     </Text>
                                                 </Table.Td>
-                                                {/* <Table.Td>
+                                            </Table.Tr>
+                                        ))}
+                                    </Table.Tbody>
+                                </Table>
+                            </ScrollArea>
+                        </Card>
+                    )}
+
+                    {/* Monthly Summary with Signatures */}
+                    {employees.length > 0 && weekPeriods.length > 0 && (
+                        <Card withBorder>
+                            <Text fw={500}>
+                                MONTH OF{" "}
+                                {selectedMonth
+                                    ? dayjs(selectedMonth).format("MMMM, YYYY").toUpperCase()
+                                    : "SELECT MONTH"}
+                            </Text>
+                            <Divider my="md" />
+
+                            <ScrollArea>
+                                <Table striped highlightOnHover style={{ minWidth: "800px" }}>
+                                    <Table.Thead>
+                                        <Table.Tr>
+                                            <Table.Th style={{ width: "50px" }}>#</Table.Th>
+                                            <Table.Th style={{ width: "250px" }}>Name</Table.Th>
+                                            <Table.Th style={{ width: "200px" }}>Total Amount Received</Table.Th>
+                                            {/* <Table.Th style={{ width: "50px" }}>Signature</Table.Th> */}
+                                        </Table.Tr>
+                                    </Table.Thead>
+                                    <Table.Tbody>
+                                        {employees.map((employee, index) => {
+                                            // const signature = getEmployeeSignature(employee.id);
+                                            return (
+                                                <Table.Tr key={employee.id}>
+                                                    <Table.Td>
+                                                        <Text size="sm" fw={500}>
+                                                            {index + 1}.
+                                                        </Text>
+                                                    </Table.Td>
+                                                    <Table.Td>
+                                                        <Text size="sm" fw={500} className="uppercase">
+                                                            {employee.name}
+                                                        </Text>
+                                                    </Table.Td>
+                                                    <Table.Td>
+                                                        <Text size="sm" fw={500}>
+                                                            ₱
+                                                            {calculateMonthlyTotal(employee.id).toLocaleString(
+                                                                "en-US",
+                                                                {
+                                                                    minimumFractionDigits: 2,
+                                                                    maximumFractionDigits: 2,
+                                                                }
+                                                            )}
+                                                        </Text>
+                                                    </Table.Td>
+                                                    {/* <Table.Td>
                                                     <div className="flex items-center gap-2">
                                                         {signature ? (
                                                             <div className="flex items-center gap-2">
@@ -1991,713 +2031,731 @@ function PayrollPageContent() {
                                                         )}
                                                     </div>
                                                 </Table.Td> */}
-                                            </Table.Tr>
-                                        );
+                                                </Table.Tr>
+                                            );
+                                        })}
+                                    </Table.Tbody>
+                                </Table>
+                            </ScrollArea>
+
+                            <Divider my="md" />
+                            <Group justify="space-between" className="border-t-2 border-gray-800 pt-2 mt-2">
+                                <Text fw={700}>Total Amount Received:</Text>
+                                <Text fw={700} size="lg">
+                                    ₱
+                                    {calculateTotalAmountReceived().toLocaleString("en-US", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
                                     })}
-                                </Table.Tbody>
-                            </Table>
-                        </ScrollArea>
-
-                        <Divider my="md" />
-                        <Group justify="space-between" className="border-t-2 border-gray-800 pt-2 mt-2">
-                            <Text fw={700}>Total Amount Received:</Text>
-                            <Text fw={700} size="lg">
-                                ₱
-                                {calculateTotalAmountReceived().toLocaleString("en-US", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                })}
-                            </Text>
-                        </Group>
-                    </Card>
-                )}
-                {/* Signature Cards */}
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="xl">
-                    {/* Prepared By */}
-                    <Card withBorder p="md">
-                        <Stack gap="sm" align="center">
-                            <Text size="sm" c="dimmed" fw={500} style={{ alignSelf: "flex-start" }}>
-                                Prepared by
-                            </Text>
-                            <Box
-                                w={200}
-                                h={80}
-                                style={{
-                                    border: "1px solid #dee2e6",
-                                    borderRadius: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    backgroundColor: "#f8f9fa",
-                                    overflow: "hidden",
-                                }}
-                            >
-                                {preparedBySignatureUrl ? (
-                                    <Image
-                                        src={preparedBySignatureUrl}
-                                        alt="Prepared by signature"
-                                        fit="contain"
-                                        w="100%"
-                                        h="100%"
-                                    />
-                                ) : (
-                                    <Text size="xs" c="dimmed">
-                                        Signature
-                                    </Text>
-                                )}
-                            </Box>
-                            <div style={{ textAlign: "center" }}>
-                                <Text fw={600} size="sm">
-                                    {preparedBy ||
-                                        (userCtx.userInfo
-                                            ? `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim()
-                                            : "N/A")}
                                 </Text>
-                                <Text size="xs" c="dimmed">
-                                    {preparedByPosition || userCtx.userInfo?.position || "Position"}
-                                </Text>
-                            </div>
-                        </Stack>
-                    </Card>
-
-                    {/* Noted by */}
-                    <Card withBorder p="md">
-                        <Stack gap="sm" align="center">
-                            <Group justify="space-between" w="100%">
-                                <Text size="sm" c="dimmed" fw={500}>
-                                    Noted by
-                                </Text>
-                                <Badge
-                                    size="sm"
-                                    color={
-                                        reportStatus === "approved" ||
-                                        reportStatus === "received" ||
-                                        reportStatus === "archived"
-                                            ? "green"
-                                            : selectedNotedByUser
-                                            ? "yellow"
-                                            : "gray"
-                                    }
-                                    variant="light"
-                                >
-                                    {reportStatus === "approved"
-                                        ? "Approved"
-                                        : reportStatus === "received"
-                                        ? "Received"
-                                        : reportStatus === "archived"
-                                        ? "Archived"
-                                        : selectedNotedByUser
-                                        ? "Pending Approval"
-                                        : "Not Selected"}
-                                </Badge>
                             </Group>
-                            <Box
-                                w={200}
-                                h={80}
-                                style={{
-                                    border: "1px solid #dee2e6",
-                                    borderRadius: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    backgroundColor: "#f8f9fa",
-                                    overflow: "hidden",
-                                }}
-                            >
-                                {notedBySignatureUrl &&
-                                (reportStatus === "approved" ||
-                                    reportStatus === "received" ||
-                                    reportStatus === "archived") ? (
-                                    <Image
-                                        src={notedBySignatureUrl}
-                                        alt="Noted by signature"
-                                        fit="contain"
-                                        w="100%"
-                                        h="100%"
-                                    />
-                                ) : (
-                                    <Stack align="center" gap="xs">
-                                        <Text size="xs" c="dimmed">
-                                            {selectedNotedByUser ? "Awaiting Approval" : "Signature"}
-                                        </Text>
-                                    </Stack>
-                                )}
-                            </Box>
-                            <div style={{ textAlign: "center" }}>
-                                <Text fw={600} size="sm">
-                                    {notedBy || "NAME"}
+                        </Card>
+                    )}
+                    {/* Signature Cards */}
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="xl">
+                        {/* Prepared By */}
+                        <Card withBorder p="md">
+                            <Stack gap="sm" align="center">
+                                <Text size="sm" c="dimmed" fw={500} style={{ alignSelf: "flex-start" }}>
+                                    Prepared by
                                 </Text>
-                                <Text size="xs" c="dimmed">
-                                    {selectedNotedByUser?.position || "Position"}
-                                </Text>
-                            </div>
-                        </Stack>
-                    </Card>
-                </SimpleGrid>
-
-                {/* Action Buttons */}
-                <Group justify="flex-end" gap="md">
-                    <SubmitForReviewButton
-                        reportType="payroll"
-                        reportPeriod={{
-                            schoolId: effectiveSchoolId || 0,
-                            year: selectedMonth?.getFullYear() || new Date().getFullYear(),
-                            month: selectedMonth ? selectedMonth.getMonth() + 1 : new Date().getMonth() + 1,
-                        }}
-                        disabled={reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected"}
-                        onSuccess={() => {
-                            notifications.show({
-                                title: "Status Updated",
-                                message: "Report status has been updated to 'Review'.",
-                                color: "green",
-                            });
-
-                            // Redirect to reports page after successful submission
-                            setTimeout(() => {
-                                router.push("/reports");
-                            }, 1000);
-                        }}
-                    />
-                    {/* Action Buttons */}
-                    <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100 hide-in-pdf">
-                        Cancel
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => setPdfModalOpened(true)}
-                        className="hide-in-pdf"
-                        leftSection={<IconFileTypePdf size={16} />}
-                    >
-                        Export PDF
-                    </Button>
-                    <SplitButton
-                        onSubmit={handleSubmitReport}
-                        onSaveDraft={handleSaveDraft}
-                        onPreview={handlePreview}
-                        className="bg-blue-600 hover:bg-blue-700 hide-in-pdf"
-                        disabled={!selectedMonth || weekPeriods.length === 0 || employees.length === 0 || isReadOnly()}
-                    >
-                        Submit Report
-                    </SplitButton>
-                </Group>
-            </Stack>
-
-            {/* Employee Management Modal */}
-            <Modal
-                opened={employeeModalOpened}
-                onClose={() => {
-                    setEmployeeModalOpened(false);
-                    setEditingEmployeeId(null);
-                    setNewEmployeeName("");
-                    setNewEmployeeDailyRate(0);
-                }}
-                title={
-                    <Group gap="sm">
-                        <IconUsers size={20} />
-                        <Text fw={500}>Manage Employees</Text>
-                    </Group>
-                }
-                centered
-                size="lg"
-            >
-                <Stack gap="md">
-                    {/* Add New Employee Form */}
-                    <Card withBorder p="md">
-                        <Text fw={500} mb="md">
-                            {editingEmployeeId ? "Edit Employee" : "Add New Employee"}
-                        </Text>
-                        <Group gap="md" align="end">
-                            <TextInput
-                                label="Name"
-                                placeholder="Enter employee name"
-                                value={newEmployeeName}
-                                onChange={(e) => setNewEmployeeName(e.currentTarget.value)}
-                                style={{ flex: 1 }}
-                                readOnly={isReadOnly()}
-                            />
-                            <NumberInput
-                                label="Daily Rate"
-                                placeholder="Enter daily rate"
-                                value={newEmployeeDailyRate}
-                                onChange={(value) =>
-                                    setNewEmployeeDailyRate(typeof value === "number" ? value : Number(value) || 0)
-                                }
-                                min={0}
-                                prefix="₱"
-                                w={120}
-                                readOnly={isReadOnly()}
-                            />
-                            <Button
-                                onClick={saveEmployee}
-                                disabled={!newEmployeeName.trim() || newEmployeeDailyRate <= 0 || isReadOnly()}
-                                className="bg-blue-600 hover:bg-blue-700"
-                            >
-                                {editingEmployeeId ? "Update" : "Add"}
-                            </Button>
-                            {editingEmployeeId && (
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setEditingEmployeeId(null);
-                                        setNewEmployeeName("");
-                                        setNewEmployeeDailyRate(0);
+                                <Box
+                                    w={200}
+                                    h={80}
+                                    style={{
+                                        border: "1px solid #dee2e6",
+                                        borderRadius: "8px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        backgroundColor: "#f8f9fa",
+                                        overflow: "hidden",
                                     }}
-                                    disabled={isReadOnly()}
                                 >
-                                    Cancel
-                                </Button>
-                            )}
-                        </Group>
-                    </Card>
+                                    {preparedBySignatureUrl ? (
+                                        <Image
+                                            src={preparedBySignatureUrl}
+                                            alt="Prepared by signature"
+                                            fit="contain"
+                                            w="100%"
+                                            h="100%"
+                                        />
+                                    ) : (
+                                        <Text size="xs" c="dimmed">
+                                            Signature
+                                        </Text>
+                                    )}
+                                </Box>
+                                <div style={{ textAlign: "center" }}>
+                                    <Text fw={600} size="sm">
+                                        {preparedBy ||
+                                            (userCtx.userInfo
+                                                ? `${userCtx.userInfo.nameFirst} ${userCtx.userInfo.nameLast}`.trim()
+                                                : "N/A")}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        {preparedByPosition || userCtx.userInfo?.position || "Position"}
+                                    </Text>
+                                </div>
+                            </Stack>
+                        </Card>
 
-                    {/* Employee List */}
-                    <div className="max-h-60 overflow-y-auto">
-                        {employees.length > 0 ? (
-                            <div className="space-y-2">
-                                {employees.map((employee) => (
-                                    <Paper withBorder key={employee.id} p="md">
-                                        <Group justify="space-between">
-                                            <div>
-                                                <Text fw={500}>{employee.name}</Text>
-                                                <Text size="sm" c="dimmed">
-                                                    ₱{employee.defaultDailyRate}/day
-                                                </Text>
-                                            </div>
-                                            <Group gap="xs">
-                                                <ActionIcon
-                                                    color="blue"
-                                                    variant="subtle"
-                                                    onClick={() => openEmployeeModal(employee)}
-                                                    title="Edit employee"
-                                                    disabled={isReadOnly()}
-                                                >
-                                                    <IconEdit size={16} />
-                                                </ActionIcon>
-                                                <ActionIcon
-                                                    color="red"
-                                                    variant="subtle"
-                                                    onClick={() => {
-                                                        setEmployeeToDelete(employee.id);
-                                                        setDeleteEmployeeModalOpened(true);
-                                                    }}
-                                                    title="Delete employee"
-                                                    disabled={isReadOnly()}
-                                                >
-                                                    <IconTrash size={16} />
-                                                </ActionIcon>
-                                            </Group>
-                                        </Group>
-                                    </Paper>
-                                ))}
-                            </div>
-                        ) : (
-                            <Text size="sm" c="dimmed" ta="center" py="xl">
-                                No employees added yet.
-                            </Text>
-                        )}
-                    </div>
-                </Stack>
-            </Modal>
+                        {/* Noted by */}
+                        <Card withBorder p="md">
+                            <Stack gap="sm" align="center">
+                                <Group justify="space-between" w="100%">
+                                    <Text size="sm" c="dimmed" fw={500}>
+                                        Noted by
+                                    </Text>
+                                    <Badge
+                                        size="sm"
+                                        color={
+                                            reportStatus === "approved" ||
+                                            reportStatus === "received" ||
+                                            reportStatus === "archived"
+                                                ? "green"
+                                                : selectedNotedByUser
+                                                ? "yellow"
+                                                : "gray"
+                                        }
+                                        variant="light"
+                                    >
+                                        {reportStatus === "approved"
+                                            ? "Approved"
+                                            : reportStatus === "received"
+                                            ? "Received"
+                                            : reportStatus === "archived"
+                                            ? "Archived"
+                                            : selectedNotedByUser
+                                            ? "Pending Approval"
+                                            : "Not Selected"}
+                                    </Badge>
+                                </Group>
+                                <Box
+                                    w={200}
+                                    h={80}
+                                    style={{
+                                        border: "1px solid #dee2e6",
+                                        borderRadius: "8px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        backgroundColor: "#f8f9fa",
+                                        overflow: "hidden",
+                                    }}
+                                >
+                                    {notedBySignatureUrl &&
+                                    (reportStatus === "approved" ||
+                                        reportStatus === "received" ||
+                                        reportStatus === "archived") ? (
+                                        <Image
+                                            src={notedBySignatureUrl}
+                                            alt="Noted by signature"
+                                            fit="contain"
+                                            w="100%"
+                                            h="100%"
+                                        />
+                                    ) : (
+                                        <Stack align="center" gap="xs">
+                                            <Text size="xs" c="dimmed">
+                                                {selectedNotedByUser ? "Awaiting Approval" : "Signature"}
+                                            </Text>
+                                        </Stack>
+                                    )}
+                                </Box>
+                                <div style={{ textAlign: "center" }}>
+                                    <Text fw={600} size="sm">
+                                        {notedBy || "NAME"}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        {selectedNotedByUser?.position || "Position"}
+                                    </Text>
+                                </div>
+                            </Stack>
+                        </Card>
+                    </SimpleGrid>
 
-            {/* Delete Employee Confirmation Modal */}
-            <Modal
-                opened={deleteEmployeeModalOpened}
-                onClose={() => {
-                    setDeleteEmployeeModalOpened(false);
-                    setEmployeeToDelete(null);
-                }}
-                title="Confirm Delete"
-                centered
-                size="sm"
-            >
-                <Stack gap="md">
-                    <Text>
-                        Are you sure you want to delete this employee? This will also remove all their attendance
-                        records.
-                    </Text>
+                    {/* Action Buttons */}
                     <Group justify="flex-end" gap="md">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setDeleteEmployeeModalOpened(false);
-                                setEmployeeToDelete(null);
+                        <SubmitForReviewButton
+                            reportType="payroll"
+                            reportPeriod={{
+                                schoolId: effectiveSchoolId || 0,
+                                year: selectedMonth?.getFullYear() || new Date().getFullYear(),
+                                month: selectedMonth ? selectedMonth.getMonth() + 1 : new Date().getMonth() + 1,
                             }}
-                        >
+                            disabled={reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected"}
+                            onSuccess={() => {
+                                notifications.show({
+                                    title: "Status Updated",
+                                    message: "Report status has been updated to 'Review'.",
+                                    color: "green",
+                                });
+
+                                // Redirect to reports page after successful submission
+                                setTimeout(() => {
+                                    router.push("/reports");
+                                }, 1000);
+                            }}
+                        />
+                        {/* Action Buttons */}
+                        <Button variant="outline" onClick={handleClose} className="hover:bg-gray-100 hide-in-pdf">
                             Cancel
                         </Button>
-                        <Button color="red" onClick={confirmDeleteEmployee}>
-                            Delete
+                        <Button
+                            variant="outline"
+                            onClick={() => setPdfModalOpened(true)}
+                            className="hide-in-pdf"
+                            leftSection={<IconFileTypePdf size={16} />}
+                        >
+                            Export PDF
                         </Button>
+                        <SplitButton
+                            onSubmit={handleSubmitReport}
+                            onSaveDraft={handleSaveDraft}
+                            onPreview={handlePreview}
+                            className="bg-blue-600 hover:bg-blue-700 hide-in-pdf"
+                            disabled={
+                                !selectedMonth || weekPeriods.length === 0 || employees.length === 0 || isReadOnly()
+                            }
+                        >
+                            Submit Report
+                        </SplitButton>
                     </Group>
                 </Stack>
-            </Modal>
 
-            {/* Custom Rate Modal */}
-            <Modal
-                opened={customRateModalOpened}
-                onClose={() => {
-                    setCustomRateModalOpened(false);
-                    setCustomRateEmployee(null);
-                    setCustomRateValue(0);
-                }}
-                title={
-                    <Group gap="sm">
-                        <IconUser size={20} />
-                        <Text fw={500}>Custom Daily Rate</Text>
-                    </Group>
-                }
-                centered
-                size="md"
-            >
-                <Stack gap="md">
-                    {customRateEmployee && (
-                        <>
+                {/* Employee Management Modal */}
+                <Modal
+                    opened={employeeModalOpened}
+                    onClose={() => {
+                        setEmployeeModalOpened(false);
+                        setEditingEmployeeId(null);
+                        setNewEmployeeName("");
+                        setNewEmployeeDailyRate(0);
+                    }}
+                    title={
+                        <Group gap="sm">
+                            <IconUsers size={20} />
+                            <Text fw={500}>Manage Employees</Text>
+                        </Group>
+                    }
+                    centered
+                    size="lg"
+                >
+                    <Stack gap="md">
+                        {/* Add New Employee Form */}
+                        <Card withBorder p="md">
+                            <Text fw={500} mb="md">
+                                {editingEmployeeId ? "Edit Employee" : "Add New Employee"}
+                            </Text>
+                            <Group gap="md" align="end">
+                                <TextInput
+                                    label="Name"
+                                    placeholder="Enter employee name"
+                                    value={newEmployeeName}
+                                    onChange={(e) => setNewEmployeeName(e.currentTarget.value)}
+                                    style={{ flex: 1 }}
+                                    readOnly={isReadOnly()}
+                                />
+                                <NumberInput
+                                    label="Daily Rate"
+                                    placeholder="Enter daily rate"
+                                    value={newEmployeeDailyRate}
+                                    onChange={(value) =>
+                                        setNewEmployeeDailyRate(typeof value === "number" ? value : Number(value) || 0)
+                                    }
+                                    min={0}
+                                    prefix="₱"
+                                    w={120}
+                                    readOnly={isReadOnly()}
+                                />
+                                <Button
+                                    onClick={saveEmployee}
+                                    disabled={!newEmployeeName.trim() || newEmployeeDailyRate <= 0 || isReadOnly()}
+                                    className="bg-blue-600 hover:bg-blue-700"
+                                >
+                                    {editingEmployeeId ? "Update" : "Add"}
+                                </Button>
+                                {editingEmployeeId && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            setEditingEmployeeId(null);
+                                            setNewEmployeeName("");
+                                            setNewEmployeeDailyRate(0);
+                                        }}
+                                        disabled={isReadOnly()}
+                                    >
+                                        Cancel
+                                    </Button>
+                                )}
+                            </Group>
+                        </Card>
+
+                        {/* Employee List */}
+                        <div className="max-h-60 overflow-y-auto">
+                            {employees.length > 0 ? (
+                                <div className="space-y-2">
+                                    {employees.map((employee) => (
+                                        <Paper withBorder key={employee.id} p="md">
+                                            <Group justify="space-between">
+                                                <div>
+                                                    <Text fw={500}>{employee.name}</Text>
+                                                    <Text size="sm" c="dimmed">
+                                                        ₱{employee.defaultDailyRate}/day
+                                                    </Text>
+                                                </div>
+                                                <Group gap="xs">
+                                                    <ActionIcon
+                                                        color="blue"
+                                                        variant="subtle"
+                                                        onClick={() => openEmployeeModal(employee)}
+                                                        title="Edit employee"
+                                                        disabled={isReadOnly()}
+                                                    >
+                                                        <IconEdit size={16} />
+                                                    </ActionIcon>
+                                                    <ActionIcon
+                                                        color="red"
+                                                        variant="subtle"
+                                                        onClick={() => {
+                                                            setEmployeeToDelete(employee.id);
+                                                            setDeleteEmployeeModalOpened(true);
+                                                        }}
+                                                        title="Delete employee"
+                                                        disabled={isReadOnly()}
+                                                    >
+                                                        <IconTrash size={16} />
+                                                    </ActionIcon>
+                                                </Group>
+                                            </Group>
+                                        </Paper>
+                                    ))}
+                                </div>
+                            ) : (
+                                <Text size="sm" c="dimmed" ta="center" py="xl">
+                                    No employees added yet.
+                                </Text>
+                            )}
+                        </div>
+                    </Stack>
+                </Modal>
+
+                {/* Delete Employee Confirmation Modal */}
+                <Modal
+                    opened={deleteEmployeeModalOpened}
+                    onClose={() => {
+                        setDeleteEmployeeModalOpened(false);
+                        setEmployeeToDelete(null);
+                    }}
+                    title="Confirm Delete"
+                    centered
+                    size="sm"
+                >
+                    <Stack gap="md">
+                        <Text>
+                            Are you sure you want to delete this employee? This will also remove all their attendance
+                            records.
+                        </Text>
+                        <Group justify="flex-end" gap="md">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setDeleteEmployeeModalOpened(false);
+                                    setEmployeeToDelete(null);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button color="red" onClick={confirmDeleteEmployee}>
+                                Delete
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Modal>
+
+                {/* Custom Rate Modal */}
+                <Modal
+                    opened={customRateModalOpened}
+                    onClose={() => {
+                        setCustomRateModalOpened(false);
+                        setCustomRateEmployee(null);
+                        setCustomRateValue(0);
+                    }}
+                    title={
+                        <Group gap="sm">
+                            <IconUser size={20} />
+                            <Text fw={500}>Custom Daily Rate</Text>
+                        </Group>
+                    }
+                    centered
+                    size="md"
+                >
+                    <Stack gap="md">
+                        {customRateEmployee && (
+                            <>
+                                <div>
+                                    <Text size="sm" c="dimmed">
+                                        Employee
+                                    </Text>
+                                    <Text fw={500}>
+                                        {employees.find((emp) => emp.id === customRateEmployee.employeeId)?.name}
+                                    </Text>
+                                </div>
+
+                                <div>
+                                    <Text size="sm" c="dimmed">
+                                        Date
+                                    </Text>
+                                    <Text fw={500}>
+                                        {dayjs(customRateEmployee.date).format("MMMM DD, YYYY (dddd)")}
+                                    </Text>
+                                </div>
+
+                                <div>
+                                    <Text size="sm" c="dimmed">
+                                        Daily Rate
+                                    </Text>
+                                    <Text fw={500}>
+                                        ₱
+                                        {
+                                            employees.find((emp) => emp.id === customRateEmployee.employeeId)
+                                                ?.defaultDailyRate
+                                        }
+                                    </Text>
+                                </div>
+
+                                <NumberInput
+                                    label="Modified Rate"
+                                    value={customRateValue}
+                                    onChange={(value) =>
+                                        setCustomRateValue(typeof value === "number" ? value : Number(value) || 0)
+                                    }
+                                    min={0}
+                                    prefix="₱"
+                                    required
+                                    readOnly={isReadOnly()}
+                                />
+                            </>
+                        )}
+
+                        <Group justify="flex-end" gap="md" mt="md">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setCustomRateModalOpened(false);
+                                    setCustomRateEmployee(null);
+                                    setCustomRateValue(0);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={saveCustomRate}
+                                disabled={customRateValue <= 0 || isReadOnly()}
+                                className="bg-orange-600 hover:bg-orange-700"
+                            >
+                                Apply
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Modal>
+
+                {/* Employee Signature Modal */}
+                <Modal
+                    opened={signatureModalOpened}
+                    onClose={() => {
+                        setSignatureModalOpened(false);
+                        setCurrentSigningEmployee(null);
+                    }}
+                    title={
+                        <Group gap="sm">
+                            <IconEdit size={20} />
+                            <Text fw={500}>Employee Signature</Text>
+                        </Group>
+                    }
+                    centered
+                    size="md"
+                >
+                    <Stack gap="md">
+                        {currentSigningEmployee && (
                             <div>
                                 <Text size="sm" c="dimmed">
                                     Employee
                                 </Text>
-                                <Text fw={500}>
-                                    {employees.find((emp) => emp.id === customRateEmployee.employeeId)?.name}
-                                </Text>
+                                <Text fw={500}>{employees.find((emp) => emp.id === currentSigningEmployee)?.name}</Text>
                             </div>
+                        )}
 
-                            <div>
-                                <Text size="sm" c="dimmed">
-                                    Date
-                                </Text>
-                                <Text fw={500}>{dayjs(customRateEmployee.date).format("MMMM DD, YYYY (dddd)")}</Text>
-                            </div>
-
-                            <div>
-                                <Text size="sm" c="dimmed">
-                                    Daily Rate
-                                </Text>
-                                <Text fw={500}>
-                                    ₱
-                                    {
-                                        employees.find((emp) => emp.id === customRateEmployee.employeeId)
-                                            ?.defaultDailyRate
-                                    }
-                                </Text>
-                            </div>
-
-                            <NumberInput
-                                label="Modified Rate"
-                                value={customRateValue}
-                                onChange={(value) =>
-                                    setCustomRateValue(typeof value === "number" ? value : Number(value) || 0)
-                                }
-                                min={0}
-                                prefix="₱"
-                                required
-                                readOnly={isReadOnly()}
-                            />
-                        </>
-                    )}
-
-                    <Group justify="flex-end" gap="md" mt="md">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setCustomRateModalOpened(false);
-                                setCustomRateEmployee(null);
-                                setCustomRateValue(0);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={saveCustomRate}
-                            disabled={customRateValue <= 0 || isReadOnly()}
-                            className="bg-orange-600 hover:bg-orange-700"
-                        >
-                            Apply
-                        </Button>
-                    </Group>
-                </Stack>
-            </Modal>
-
-            {/* Employee Signature Modal */}
-            <Modal
-                opened={signatureModalOpened}
-                onClose={() => {
-                    setSignatureModalOpened(false);
-                    setCurrentSigningEmployee(null);
-                }}
-                title={
-                    <Group gap="sm">
-                        <IconEdit size={20} />
-                        <Text fw={500}>Employee Signature</Text>
-                    </Group>
-                }
-                centered
-                size="md"
-            >
-                <Stack gap="md">
-                    {currentSigningEmployee && (
                         <div>
-                            <Text size="sm" c="dimmed">
-                                Employee
+                            <Text size="sm" fw={500} mb="sm">
+                                Please sign below to acknowledge payment:
                             </Text>
-                            <Text fw={500}>{employees.find((emp) => emp.id === currentSigningEmployee)?.name}</Text>
+                            <SignatureCanvas
+                                onSave={saveEmployeeSignature}
+                                onCancel={() => {
+                                    setSignatureModalOpened(false);
+                                    setCurrentSigningEmployee(null);
+                                }}
+                                width={400}
+                                height={150}
+                            />
                         </div>
-                    )}
+                    </Stack>
+                </Modal>
 
-                    <div>
-                        <Text size="sm" fw={500} mb="sm">
-                            Please sign below to acknowledge payment:
-                        </Text>
-                        <SignatureCanvas
-                            onSave={saveEmployeeSignature}
-                            onCancel={() => {
-                                setSignatureModalOpened(false);
-                                setCurrentSigningEmployee(null);
-                            }}
-                            width={400}
-                            height={150}
-                        />
-                    </div>
-                </Stack>
-            </Modal>
-
-            {/* Approval Modal */}
-            <Modal
-                opened={approvalModalOpened}
-                onClose={() => {
-                    setApprovalModalOpened(false);
-                    setApprovalCheckbox(false);
-                }}
-                title={
-                    <Group gap="sm">
-                        <IconCheck size={20} />
-                        <Text fw={500}>Approve Payroll Report</Text>
-                    </Group>
-                }
-                centered
-                size="md"
-            >
-                <Stack gap="md">
-                    <Text size="sm">
-                        Are you sure you want to approve this payroll report? This action cannot be undone.
-                    </Text>
-
-                    <Checkbox
-                        checked={approvalCheckbox}
-                        onChange={(event) => setApprovalCheckbox(event.currentTarget.checked)}
-                        label="I confirm that I have reviewed this report and approve it for submission."
-                        disabled={isReadOnly()}
-                    />
-
-                    <Group justify="flex-end" gap="sm">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setApprovalModalOpened(false);
-                                setApprovalCheckbox(false);
-                            }}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            color="green"
-                            onClick={handleApproveReport}
-                            disabled={!approvalCheckbox || isReadOnly()}
-                            leftSection={<IconCheck size={16} />}
-                        >
-                            Approve Report
-                        </Button>
-                    </Group>
-                </Stack>
-            </Modal>
-
-            {/* Preview Modal */}
-            <Modal
-                opened={previewModalOpened}
-                onClose={() => setPreviewModalOpened(false)}
-                title={
-                    <Group gap="sm">
-                        <IconReceipt2 size={20} />
-                        <Text fw={500}>Payroll Report Preview</Text>
-                    </Group>
-                }
-                centered
-                size="xl"
-            >
-                <ScrollArea.Autosize mah={600}>
+                {/* Approval Modal */}
+                <Modal
+                    opened={approvalModalOpened}
+                    onClose={() => {
+                        setApprovalModalOpened(false);
+                        setApprovalCheckbox(false);
+                    }}
+                    title={
+                        <Group gap="sm">
+                            <IconCheck size={20} />
+                            <Text fw={500}>Approve Payroll Report</Text>
+                        </Group>
+                    }
+                    centered
+                    size="md"
+                >
                     <Stack gap="md">
-                        {/* Report Header */}
-                        <Paper withBorder p="md">
-                            <Group justify="space-between">
-                                <div>
-                                    <Text fw={500} size="lg">
-                                        Payroll Report for{" "}
-                                        {selectedMonth ? dayjs(selectedMonth).format("MMMM YYYY") : "No month selected"}
-                                    </Text>
-                                    <Text size="sm" c="dimmed">
-                                        School: {userCtx.userInfo?.schoolId || "Unknown School"}
-                                    </Text>
-                                </div>
-                                <Badge color="blue" size="lg">
-                                    {calculatePayrollSummary().totalEmployees} Employees
-                                </Badge>
-                            </Group>
-                        </Paper>
+                        <Text size="sm">
+                            Are you sure you want to approve this payroll report? This action cannot be undone.
+                        </Text>
 
-                        {/* Summary Stats */}
-                        <SimpleGrid cols={3} spacing="md">
-                            <Paper withBorder p="md" ta="center">
-                                <Text fw={500} size="xl">
-                                    ₱{calculatePayrollSummary().totalPayroll.toLocaleString()}
-                                </Text>
-                                <Text size="sm" c="dimmed">
-                                    Total Payroll
-                                </Text>
-                            </Paper>
-                            <Paper withBorder p="md" ta="center">
-                                <Text fw={500} size="xl">
-                                    {calculatePayrollSummary().totalWorkingDays}
-                                </Text>
-                                <Text size="sm" c="dimmed">
-                                    Working Days
-                                </Text>
-                            </Paper>
-                            <Paper withBorder p="md" ta="center">
-                                <Text fw={500} size="xl">
-                                    {calculatePayrollSummary().totalAttendance}
-                                </Text>
-                                <Text size="sm" c="dimmed">
-                                    Total Attendance
-                                </Text>
-                            </Paper>
-                        </SimpleGrid>
+                        <Checkbox
+                            checked={approvalCheckbox}
+                            onChange={(event) => setApprovalCheckbox(event.currentTarget.checked)}
+                            label="I confirm that I have reviewed this report and approve it for submission."
+                            disabled={isReadOnly()}
+                        />
 
-                        {/* Employee Details */}
-                        <Paper withBorder p="md">
-                            <Text fw={500} mb="md">
-                                Employee Summary
-                            </Text>
-                            <Table>
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th>Employee</Table.Th>
-                                        <Table.Th>Days Worked</Table.Th>
-                                        <Table.Th>Average Daily Rate</Table.Th>
-                                        <Table.Th>Total Salary</Table.Th>
-                                        <Table.Th>Signature</Table.Th>
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {employees.map((employee) => {
-                                        const summary = calculateEmployeeSummary(employee.id);
-                                        const signature = employeeSignatures.find((s) => s.employeeId === employee.id);
-                                        return (
-                                            <Table.Tr key={employee.id}>
-                                                <Table.Td>{employee.name}</Table.Td>
-                                                <Table.Td>{summary.daysWorked}</Table.Td>
-                                                <Table.Td>₱{summary.averageRate.toLocaleString()}</Table.Td>
-                                                <Table.Td>₱{summary.totalSalary.toLocaleString()}</Table.Td>
-                                                <Table.Td>
-                                                    {signature ? (
-                                                        <Badge color="green" size="sm">
-                                                            Signed
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge color="red" size="sm">
-                                                            Not Signed
-                                                        </Badge>
-                                                    )}
-                                                </Table.Td>
-                                            </Table.Tr>
-                                        );
-                                    })}
-                                </Table.Tbody>
-                            </Table>
-                        </Paper>
-
-                        {/* Action Buttons */}
                         <Group justify="flex-end" gap="sm">
-                            <Button variant="outline" onClick={() => setPreviewModalOpened(false)}>
-                                Close
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setApprovalModalOpened(false);
+                                    setApprovalCheckbox(false);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                color="green"
+                                onClick={handleApproveReport}
+                                disabled={!approvalCheckbox || isReadOnly()}
+                                leftSection={<IconCheck size={16} />}
+                            >
+                                Approve Report
                             </Button>
                         </Group>
                     </Stack>
-                </ScrollArea.Autosize>
-            </Modal>
+                </Modal>
 
-            {/* Approval Modal */}
-            <Modal
-                opened={reportApprovalModalOpened}
-                onClose={() => setReportApprovalModalOpened(false)}
-                title="Confirm Report Approval"
-                centered
-                size="md"
-            >
-                <Stack gap="md">
-                    <Alert variant="light" color="blue" title="Important Notice" icon={<IconAlertCircle size={16} />}>
-                        You are about to approve this payroll report as{" "}
-                        <strong>
-                            {selectedNotedByUser?.nameFirst} {selectedNotedByUser?.nameLast}
-                        </strong>
-                        . This action will apply your digital signature to the document.
-                    </Alert>
+                {/* Preview Modal */}
+                <Modal
+                    opened={previewModalOpened}
+                    onClose={() => setPreviewModalOpened(false)}
+                    title={
+                        <Group gap="sm">
+                            <IconReceipt2 size={20} />
+                            <Text fw={500}>Payroll Report Preview</Text>
+                        </Group>
+                    }
+                    centered
+                    size="xl"
+                >
+                    <ScrollArea.Autosize mah={600}>
+                        <Stack gap="md">
+                            {/* Report Header */}
+                            <Paper withBorder p="md">
+                                <Group justify="space-between">
+                                    <div>
+                                        <Text fw={500} size="lg">
+                                            Payroll Report for{" "}
+                                            {selectedMonth
+                                                ? dayjs(selectedMonth).format("MMMM YYYY")
+                                                : "No month selected"}
+                                        </Text>
+                                        <Text size="sm" c="dimmed">
+                                            School: {userCtx.userInfo?.schoolId || "Unknown School"}
+                                        </Text>
+                                    </div>
+                                    <Badge color="blue" size="lg">
+                                        {calculatePayrollSummary().totalEmployees} Employees
+                                    </Badge>
+                                </Group>
+                            </Paper>
 
-                    <Text size="sm">By approving this report, you confirm that:</Text>
+                            {/* Summary Stats */}
+                            <SimpleGrid cols={3} spacing="md">
+                                <Paper withBorder p="md" ta="center">
+                                    <Text fw={500} size="xl">
+                                        ₱{calculatePayrollSummary().totalPayroll.toLocaleString()}
+                                    </Text>
+                                    <Text size="sm" c="dimmed">
+                                        Total Payroll
+                                    </Text>
+                                </Paper>
+                                <Paper withBorder p="md" ta="center">
+                                    <Text fw={500} size="xl">
+                                        {calculatePayrollSummary().totalWorkingDays}
+                                    </Text>
+                                    <Text size="sm" c="dimmed">
+                                        Working Days
+                                    </Text>
+                                </Paper>
+                                <Paper withBorder p="md" ta="center">
+                                    <Text fw={500} size="xl">
+                                        {calculatePayrollSummary().totalAttendance}
+                                    </Text>
+                                    <Text size="sm" c="dimmed">
+                                        Total Attendance
+                                    </Text>
+                                </Paper>
+                            </SimpleGrid>
 
-                    <Stack gap="xs" pl="md">
-                        <Text size="sm">• You have reviewed all entries and data</Text>
-                        <Text size="sm">• The information is accurate and complete</Text>
-                        <Text size="sm">• You authorize the use of the digital signature</Text>
+                            {/* Employee Details */}
+                            <Paper withBorder p="md">
+                                <Text fw={500} mb="md">
+                                    Employee Summary
+                                </Text>
+                                <Table>
+                                    <Table.Thead>
+                                        <Table.Tr>
+                                            <Table.Th>Employee</Table.Th>
+                                            <Table.Th>Days Worked</Table.Th>
+                                            <Table.Th>Average Daily Rate</Table.Th>
+                                            <Table.Th>Total Salary</Table.Th>
+                                            <Table.Th>Signature</Table.Th>
+                                        </Table.Tr>
+                                    </Table.Thead>
+                                    <Table.Tbody>
+                                        {employees.map((employee) => {
+                                            const summary = calculateEmployeeSummary(employee.id);
+                                            const signature = employeeSignatures.find(
+                                                (s) => s.employeeId === employee.id
+                                            );
+                                            return (
+                                                <Table.Tr key={employee.id}>
+                                                    <Table.Td>{employee.name}</Table.Td>
+                                                    <Table.Td>{summary.daysWorked}</Table.Td>
+                                                    <Table.Td>₱{summary.averageRate.toLocaleString()}</Table.Td>
+                                                    <Table.Td>₱{summary.totalSalary.toLocaleString()}</Table.Td>
+                                                    <Table.Td>
+                                                        {signature ? (
+                                                            <Badge color="green" size="sm">
+                                                                Signed
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge color="red" size="sm">
+                                                                Not Signed
+                                                            </Badge>
+                                                        )}
+                                                    </Table.Td>
+                                                </Table.Tr>
+                                            );
+                                        })}
+                                    </Table.Tbody>
+                                </Table>
+                            </Paper>
+
+                            {/* Action Buttons */}
+                            <Group justify="flex-end" gap="sm">
+                                <Button variant="outline" onClick={() => setPreviewModalOpened(false)}>
+                                    Close
+                                </Button>
+                            </Group>
+                        </Stack>
+                    </ScrollArea.Autosize>
+                </Modal>
+
+                {/* Approval Modal */}
+                <Modal
+                    opened={reportApprovalModalOpened}
+                    onClose={() => setReportApprovalModalOpened(false)}
+                    title="Confirm Report Approval"
+                    centered
+                    size="md"
+                >
+                    <Stack gap="md">
+                        <Alert
+                            variant="light"
+                            color="blue"
+                            title="Important Notice"
+                            icon={<IconAlertCircle size={16} />}
+                        >
+                            You are about to approve this payroll report as{" "}
+                            <strong>
+                                {selectedNotedByUser?.nameFirst} {selectedNotedByUser?.nameLast}
+                            </strong>
+                            . This action will apply your digital signature to the document.
+                        </Alert>
+
+                        <Text size="sm">By approving this report, you confirm that:</Text>
+
+                        <Stack gap="xs" pl="md">
+                            <Text size="sm">• You have reviewed all entries and data</Text>
+                            <Text size="sm">• The information is accurate and complete</Text>
+                            <Text size="sm">• You authorize the use of the digital signature</Text>
+                        </Stack>
+
+                        <Checkbox
+                            label="I confirm that I have the authority to approve this report and apply the digital signature"
+                            checked={reportApprovalCheckbox}
+                            onChange={(event) => setReportApprovalCheckbox(event.currentTarget.checked)}
+                        />
+
+                        <Group justify="flex-end" gap="sm">
+                            <Button variant="outline" onClick={() => setReportApprovalModalOpened(false)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleReportApprovalConfirm}
+                                disabled={!reportApprovalCheckbox}
+                                color="green"
+                            >
+                                Approve & Sign
+                            </Button>
+                        </Group>
                     </Stack>
+                </Modal>
 
-                    <Checkbox
-                        label="I confirm that I have the authority to approve this report and apply the digital signature"
-                        checked={reportApprovalCheckbox}
-                        onChange={(event) => setReportApprovalCheckbox(event.currentTarget.checked)}
-                    />
+                {/* PDF Export Modal */}
+                <Modal
+                    opened={pdfModalOpened}
+                    onClose={() => setPdfModalOpened(false)}
+                    title={getFileName()}
+                    size="90%"
+                    centered
+                    padding="sm"
+                >
+                    <Stack gap="xs">
+                        <div
+                            style={{
+                                maxHeight: "70vh",
+                                overflowY: "auto",
+                                border: "1px solid #e0e0e0",
+                                borderRadius: "8px",
+                            }}
+                        >
+                            <PDFReportTemplate />
+                        </div>
 
-                    <Group justify="flex-end" gap="sm">
-                        <Button variant="outline" onClick={() => setReportApprovalModalOpened(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleReportApprovalConfirm} disabled={!reportApprovalCheckbox} color="green">
-                            Approve & Sign
-                        </Button>
-                    </Group>
-                </Stack>
-            </Modal>
-
-            {/* PDF Export Modal */}
-            <Modal
-                opened={pdfModalOpened}
-                onClose={() => setPdfModalOpened(false)}
-                title={getFileName()}
-                size="90%"
-                centered
-                padding="sm"
-            >
-                <Stack gap="xs">
-                    <div
-                        style={{
-                            maxHeight: "70vh",
-                            overflowY: "auto",
-                            border: "1px solid #e0e0e0",
-                            borderRadius: "8px",
-                        }}
-                    >
-                        <PDFReportTemplate />
-                    </div>
-
-                    <Group justify="flex-end" gap="md">
-                        <Button variant="outline" onClick={() => setPdfModalOpened(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={exportToPDF} leftSection={<IconDownload size={16} />}>
-                            Download
-                        </Button>
-                    </Group>
-                </Stack>
-            </Modal>
-        </div>
+                        <Group justify="flex-end" gap="md">
+                            <Button variant="outline" onClick={() => setPdfModalOpened(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={exportToPDF} leftSection={<IconDownload size={16} />}>
+                                Download
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Modal>
+            </div>
+        </Container>
     );
 
     async function handleApproveReport() {

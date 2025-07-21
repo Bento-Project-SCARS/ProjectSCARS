@@ -1,6 +1,6 @@
 .navbar {
-    height: 100vh;
-    width: 325vw;
+    height: 100%;
+    width: 100%;
     padding: var(--mantine-spacing-md);
     display: flex;
     flex-direction: column;
@@ -8,12 +8,6 @@
 
 .navbarMain {
     flex: 1;
-}
-
-.header {
-    padding-bottom: var(--mantine-spacing-md);
-    margin-bottom: calc(var(--mantine-spacing-md) * 1.5);
-    border-bottom: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
 }
 
 .footer {
@@ -31,27 +25,25 @@
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     border-radius: var(--mantine-radius-sm);
     font-weight: 500;
+}
 
-    @mixin hover {
-        background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
-        color: light-dark(var(--mantine-color-black), var(--mantine-color-white));
+.link:hover {
+    background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6));
+    color: light-dark(var(--mantine-color-black), var(--mantine-color-white));
+}
 
-        .linkIcon {
-            color: light-dark(var(--mantine-color-black), var(--mantine-color-white));
-        }
-    }
+.link:hover .linkIcon {
+    color: light-dark(var(--mantine-color-black), var(--mantine-color-white));
+}
 
-    &[data-active] {
-        &,
-        &:hover {
-            background-color: var(--mantine-color-blue-light);
-            color: var(--mantine-color-blue-light-color);
+.link[data-active],
+.link[data-active]:hover {
+    background-color: var(--mantine-color-blue-light);
+    color: var(--mantine-color-blue-light-color);
+}
 
-            .linkIcon {
-                color: var(--mantine-color-blue-light-color);
-            }
-        }
-    }
+.link[data-active] .linkIcon {
+    color: var(--mantine-color-blue-light-color);
 }
 
 .linkIcon {
@@ -59,10 +51,4 @@
     margin-right: var(--mantine-spacing-sm);
     width: 25px;
     height: 25px;
-}
-
-@media (max-width: 48em) {
-    .navbar {
-        width: 325px;
-    }
 }

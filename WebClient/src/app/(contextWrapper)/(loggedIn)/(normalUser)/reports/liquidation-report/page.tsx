@@ -35,6 +35,7 @@ import {
     Button,
     Card,
     Checkbox,
+    Container,
     Divider,
     Flex,
     Group,
@@ -130,7 +131,25 @@ function LiquidationReportContent() {
 
     const effectiveSchoolId = getEffectiveSchoolId();
 
-    const [reportPeriod, setReportPeriod] = useState<Date | null>(new Date());
+    // Helper function to get initial period from URL parameters or default to current month
+    const getInitialReportPeriod = useCallback(() => {
+        const yearParam = searchParams.get("year");
+        const monthParam = searchParams.get("month");
+
+        if (yearParam && monthParam) {
+            const year = parseInt(yearParam, 10);
+            const month = parseInt(monthParam, 10);
+
+            // Validate year and month
+            if (!isNaN(year) && !isNaN(month) && month >= 1 && month <= 12) {
+                return new Date(year, month - 1); // month is 0-indexed in Date constructor
+            }
+        }
+
+        return new Date(); // Default to current month
+    }, [searchParams]);
+
+    const [reportPeriod, setReportPeriod] = useState<Date | null>(getInitialReportPeriod());
     const [unitOptions, setUnitOptions] = useState<string[]>(defaultUnitOptions);
     const [expenseItems, setExpenseItems] = useState<ExpenseDetails[]>([
         {
@@ -209,21 +228,35 @@ function LiquidationReportContent() {
         return date;
     }, [isWeekend]);
 
-    // Update initial expense item to use weekday
+    // Update report period when URL parameters change
     useEffect(() => {
-        if (expenseItems.length === 1 && expenseItems[0].particulars === "" && expenseItems[0].unitPrice === 0) {
-            // Only update if this looks like the initial default item
-            const initialDate = expenseItems[0].date;
-            if (isWeekend(initialDate)) {
-                setExpenseItems([
-                    {
-                        ...expenseItems[0],
-                        date: getPreviousWeekday(),
-                    },
-                ]);
+        const newPeriod = getInitialReportPeriod();
+        setReportPeriod((prev) => {
+            if (newPeriod.getTime() !== (prev?.getTime() || 0)) {
+                return newPeriod;
             }
-        }
-    }, [expenseItems, isWeekend, getPreviousWeekday]);
+            return prev;
+        });
+    }, [getInitialReportPeriod]);
+
+    // Update initial expense item when report period changes
+    useEffect(() => {
+        setExpenseItems((prev) => {
+            if (prev.length === 1 && prev[0].particulars === "" && prev[0].unitPrice === 0) {
+                // Only update if this looks like the initial default item
+                const initialDate = prev[0].date;
+                if (isWeekend(initialDate)) {
+                    return [
+                        {
+                            ...prev[0],
+                            date: getPreviousWeekday(),
+                        },
+                    ];
+                }
+            }
+            return prev; // Return unchanged if conditions not met
+        });
+    }, [reportPeriod, isWeekend, getPreviousWeekday]);
 
     const hasQtyUnit = QTY_FIELDS_REQUIRED.includes(category || "");
     const hasReceiptVoucher = RECEIPT_FIELDS_REQUIRED.includes(category || "");
@@ -624,7 +657,7 @@ function LiquidationReportContent() {
     }
 
     const handleClose = () => {
-        router.push("/reports");
+        router.back();
     };
 
     const handleApprovalConfirm = async () => {
@@ -1283,417 +1316,427 @@ function LiquidationReportContent() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto p-4 sm:p-6">
-            <Stack gap="lg">
-                {/* Header */}
-                <Flex justify="space-between" align="center" className="flex-col sm:flex-row gap-4">
-                    <Group gap="md">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <IconHistory size={28} />
-                        </div>
-                        <div>
-                            <Group gap="sm" align="center">
-                                <Title order={2} className="text-gray-800">
-                                    {report_type[category as keyof typeof report_type] || "Report Category Not Found"}
-                                </Title>
-                                {isReadOnly() && (
-                                    <Badge color="blue" variant="light" size="sm">
-                                        {reportStatus === "approved" ? "Approved" : "Under Review"}
-                                    </Badge>
-                                )}
-                            </Group>
-                            <Text size="sm" c="dimmed">
-                                {isReadOnly() ? "Viewing" : "Create and manage"} expense liquidation for{" "}
-                                {dayjs(reportPeriod).format("MMMM YYYY")}
-                            </Text>
-                        </div>
-                    </Group>
-                    <Group gap="md">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="lg"
-                            onClick={handleClose}
-                            className="hover:bg-gray-100"
-                        >
-                            <IconX size={20} />
-                        </ActionIcon>
-                    </Group>
-                </Flex>
-                {/* Month Selection */}
-                <Card withBorder>
-                    <Group justify="space-between" align="center" className="flex-col sm:flex-row gap-4">
-                        <Text fw={500}>Report Period</Text>
-                        <MonthPickerInput
-                            placeholder="Select month"
-                            value={reportPeriod}
-                            onChange={(value) => {
-                                const newDate = value ? new Date(value) : null;
-                                setReportPeriod(newDate);
+        <Container size="xl" py={{ base: "sm", sm: "md", lg: "xl" }}>
+            <div className="max-w-7xl mx-auto p-4 sm:p-6">
+                <Stack gap="lg">
+                    {/* Header */}
+                    <Flex justify="space-between" align="center" direction={{ base: "column", sm: "row" }} gap="md">
+                        <Group gap="md">
+                            <div className="p-2 bg-blue-100 rounded-lg">
+                                <IconHistory size={28} />
+                            </div>
+                            <div>
+                                <Group gap="sm" align="center">
+                                    <Title order={2} className="text-gray-800">
+                                        {report_type[category as keyof typeof report_type] ||
+                                            "Report Category Not Found"}
+                                    </Title>
+                                    {isReadOnly() && (
+                                        <Badge color="blue" variant="light" size="sm">
+                                            {reportStatus === "approved" ? "Approved" : "Under Review"}
+                                        </Badge>
+                                    )}
+                                </Group>
+                                <Text size="sm" c="dimmed">
+                                    {isReadOnly() ? "Viewing" : "Create and manage"} expense liquidation for{" "}
+                                    {dayjs(reportPeriod).format("MMMM YYYY")}
+                                </Text>
+                            </div>
+                        </Group>
+                        <Group gap="md">
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="lg"
+                                onClick={handleClose}
+                                className="hover:bg-gray-100"
+                            >
+                                <IconX size={20} />
+                            </ActionIcon>
+                        </Group>
+                    </Flex>
+                    {/* Month Selection */}
+                    <Card withBorder>
+                        <Group justify="space-between" align="center" className="flex-col sm:flex-row gap-4">
+                            <Text fw={500}>Report Period</Text>
+                            <MonthPickerInput
+                                placeholder="Select month"
+                                value={reportPeriod}
+                                onChange={(value) => {
+                                    const newDate = value ? new Date(value) : null;
+                                    setReportPeriod(newDate);
 
-                                // Clear state when month changes
-                                setExpenseItems([
-                                    {
-                                        id: new Date(),
-                                        date: getPreviousWeekday(), // Use previous weekday for past receipts/invoices
-                                        particulars: "",
-                                        receiptNumber: RECEIPT_FIELDS_REQUIRED.includes(category || "")
-                                            ? ""
-                                            : undefined,
-                                        quantity: QTY_FIELDS_REQUIRED.includes(category || "") ? 1 : undefined,
-                                        unit: QTY_FIELDS_REQUIRED.includes(category || "") ? "" : undefined,
-                                        unitPrice: 0,
-                                    },
-                                ]);
-                                setNotes("");
-                                setReportAttachments([]);
-                                setReceiptAttachmentUrns([]);
-                                setReportStatus(null);
-                                setNotedBy(null);
-                                setSelectedNotedByUser(null);
-                                setNotedBySignatureUrl(null);
-                                setPreparedBy(null);
-                                setPreparedBySignatureUrl(null);
-                            }}
-                            leftSection={<IconCalendar size={16} />}
-                            className="w-full sm:w-64"
-                            valueFormat="MMMM YYYY"
-                            maxDate={new Date()}
-                            required
-                        />
-                    </Group>
-                </Card>
-                {/* Item Details Table */}
-                <Card withBorder>
-                    <Group justify="space-between" align="center" mb="md">
-                        <Text fw={500}>Item Details</Text>
-                        <Button
-                            leftSection={<IconPlus size={16} />}
-                            onClick={addNewItem}
-                            variant="light"
-                            className="bg-blue-50 hover:bg-blue-100"
-                            disabled={isReadOnly()}
-                        >
-                            Add Item
-                        </Button>
-                    </Group>
-                    <div className="overflow-x-auto">
-                        <ScrollArea>
-                            <Table striped highlightOnHover>
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th className="w-44">Date</Table.Th>
-                                        {hasReceiptVoucher && <Table.Th className="w-40">Receipt/Voucher No.</Table.Th>}
-                                        <Table.Th>{hasReceiptVoucher ? "Item" : "Particulars"}</Table.Th>
-                                        {hasQtyUnit && (
-                                            <>
-                                                <Table.Th className="w-32">Quantity</Table.Th>
-                                                <Table.Th className="w-32">Unit</Table.Th>
-                                            </>
-                                        )}
-                                        <Table.Th className="w-36">Amount</Table.Th>
-                                        {hasQtyUnit && <Table.Th className="w-36">Total</Table.Th>}
-                                        <Table.Th className="w-16"></Table.Th>
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {expenseItems.map((item) => (
-                                        <Table.Tr key={item.id.toISOString()}>
-                                            <Table.Td>
-                                                <DateInput
-                                                    className="w-full"
-                                                    placeholder="Select date"
-                                                    value={item.date}
-                                                    onChange={(date) => updateItem(item.id, "date", date || new Date())}
-                                                    minDate={minDate}
-                                                    maxDate={maxDate}
-                                                    date={reportPeriod || new Date()}
-                                                    required
-                                                    readOnly={isReadOnly()}
-                                                    disabled={isReadOnly()}
-                                                    getDayProps={(date) => {
-                                                        const dayOfWeek = dayjs(date).day(); // 0 = Sunday, 6 = Saturday
-
-                                                        // Check if the date is within the current report month
-                                                        const isCurrentMonth = reportPeriod
-                                                            ? dayjs(date).isSame(reportPeriod, "month")
-                                                            : false;
-
-                                                        // Disable weekends (Saturday and Sunday)
-                                                        const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
-
-                                                        // Disable future dates (after today)
-                                                        const isFutureDate = dayjs(date).isAfter(dayjs(), "day");
-
-                                                        // Disable if not in current month, is weekend, or is future date
-                                                        const shouldDisable =
-                                                            !isCurrentMonth || isWeekendDay || isFutureDate;
-
-                                                        return {
-                                                            disabled: shouldDisable,
-                                                            style: {
-                                                                color: shouldDisable ? "#adb5bd" : undefined, // gray out disabled days
-                                                            },
-                                                        };
-                                                    }}
-                                                />
-                                            </Table.Td>
+                                    // Clear state when month changes
+                                    setExpenseItems([
+                                        {
+                                            id: new Date(),
+                                            date: getPreviousWeekday(), // Use previous weekday for past receipts/invoices
+                                            particulars: "",
+                                            receiptNumber: RECEIPT_FIELDS_REQUIRED.includes(category || "")
+                                                ? ""
+                                                : undefined,
+                                            quantity: QTY_FIELDS_REQUIRED.includes(category || "") ? 1 : undefined,
+                                            unit: QTY_FIELDS_REQUIRED.includes(category || "") ? "" : undefined,
+                                            unitPrice: 0,
+                                        },
+                                    ]);
+                                    setNotes("");
+                                    setReportAttachments([]);
+                                    setReceiptAttachmentUrns([]);
+                                    setReportStatus(null);
+                                    setNotedBy(null);
+                                    setSelectedNotedByUser(null);
+                                    setNotedBySignatureUrl(null);
+                                    setPreparedBy(null);
+                                    setPreparedBySignatureUrl(null);
+                                }}
+                                leftSection={<IconCalendar size={16} />}
+                                className="w-full sm:w-64"
+                                valueFormat="MMMM YYYY"
+                                required
+                            />
+                        </Group>
+                    </Card>
+                    {/* Item Details Table */}
+                    <Card withBorder>
+                        <Group justify="space-between" align="center" mb="md">
+                            <Text fw={500}>Item Details</Text>
+                            <Button
+                                leftSection={<IconPlus size={16} />}
+                                onClick={addNewItem}
+                                variant="light"
+                                className="bg-blue-50 hover:bg-blue-100"
+                                disabled={isReadOnly()}
+                            >
+                                Add Item
+                            </Button>
+                        </Group>
+                        <div className="overflow-x-auto">
+                            <ScrollArea>
+                                <Table striped highlightOnHover>
+                                    <Table.Thead>
+                                        <Table.Tr>
+                                            <Table.Th className="w-44">Date</Table.Th>
                                             {hasReceiptVoucher && (
-                                                <Table.Td>
-                                                    <TextInput
-                                                        className="w-full"
-                                                        placeholder="Enter receipt/voucher no."
-                                                        value={item.receiptNumber || ""}
-                                                        onChange={(e) =>
-                                                            updateItem(item.id, "receiptNumber", e.currentTarget.value)
-                                                        }
-                                                        readOnly={isReadOnly()}
-                                                        disabled={isReadOnly()}
-                                                    />
-                                                </Table.Td>
+                                                <Table.Th className="w-40">Receipt/Voucher No.</Table.Th>
                                             )}
-                                            <Table.Td>
-                                                <TextInput
-                                                    className="w-full"
-                                                    placeholder="Enter item description"
-                                                    value={item.particulars}
-                                                    onChange={(e) =>
-                                                        updateItem(item.id, "particulars", e.currentTarget.value)
-                                                    }
-                                                    required
-                                                    readOnly={isReadOnly()}
-                                                    disabled={isReadOnly()}
-                                                />
-                                            </Table.Td>
+                                            <Table.Th>{hasReceiptVoucher ? "Item" : "Particulars"}</Table.Th>
                                             {hasQtyUnit && (
                                                 <>
+                                                    <Table.Th className="w-32">Quantity</Table.Th>
+                                                    <Table.Th className="w-32">Unit</Table.Th>
+                                                </>
+                                            )}
+                                            <Table.Th className="w-36">Amount</Table.Th>
+                                            {hasQtyUnit && <Table.Th className="w-36">Total</Table.Th>}
+                                            <Table.Th className="w-16"></Table.Th>
+                                        </Table.Tr>
+                                    </Table.Thead>
+                                    <Table.Tbody>
+                                        {expenseItems.map((item) => (
+                                            <Table.Tr key={item.id.toISOString()}>
+                                                <Table.Td>
+                                                    <DateInput
+                                                        className="w-full"
+                                                        placeholder="Select date"
+                                                        value={item.date}
+                                                        onChange={(date) =>
+                                                            updateItem(item.id, "date", date || new Date())
+                                                        }
+                                                        minDate={minDate}
+                                                        maxDate={maxDate}
+                                                        date={reportPeriod || new Date()}
+                                                        required
+                                                        readOnly={isReadOnly()}
+                                                        disabled={isReadOnly()}
+                                                        getDayProps={(date) => {
+                                                            const dayOfWeek = dayjs(date).day(); // 0 = Sunday, 6 = Saturday
+
+                                                            // Check if the date is within the current report month
+                                                            const isCurrentMonth = reportPeriod
+                                                                ? dayjs(date).isSame(reportPeriod, "month")
+                                                                : false;
+
+                                                            // Disable weekends (Saturday and Sunday)
+                                                            const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
+
+                                                            // Disable future dates (after today)
+                                                            const isFutureDate = dayjs(date).isAfter(dayjs(), "day");
+
+                                                            // Disable if not in current month, is weekend, or is future date
+                                                            const shouldDisable =
+                                                                !isCurrentMonth || isWeekendDay || isFutureDate;
+
+                                                            return {
+                                                                disabled: shouldDisable,
+                                                                style: {
+                                                                    color: shouldDisable ? "#adb5bd" : undefined, // gray out disabled days
+                                                                },
+                                                            };
+                                                        }}
+                                                    />
+                                                </Table.Td>
+                                                {hasReceiptVoucher && (
                                                     <Table.Td>
-                                                        <NumberInput
+                                                        <TextInput
                                                             className="w-full"
-                                                            placeholder="Qty"
-                                                            value={item.quantity}
-                                                            onChange={(value) =>
-                                                                updateItem(item.id, "quantity", Number(value) || 1)
+                                                            placeholder="Enter receipt/voucher no."
+                                                            value={item.receiptNumber || ""}
+                                                            onChange={(e) =>
+                                                                updateItem(
+                                                                    item.id,
+                                                                    "receiptNumber",
+                                                                    e.currentTarget.value
+                                                                )
                                                             }
-                                                            min={1}
                                                             readOnly={isReadOnly()}
                                                             disabled={isReadOnly()}
                                                         />
                                                     </Table.Td>
-                                                    <Table.Td>
-                                                        <CreatableUnitSelect
-                                                            value={item.unit}
-                                                            onChange={(value) => updateItem(item.id, "unit", value)}
-                                                            unitOptions={unitOptions}
-                                                            onAddUnit={addUnitOption}
-                                                            disabled={isReadOnly()}
-                                                        />
-                                                    </Table.Td>
-                                                </>
-                                            )}
-                                            <Table.Td>
-                                                <NumberInput
-                                                    className="w-full"
-                                                    placeholder=""
-                                                    value={item.unitPrice}
-                                                    onChange={(value) =>
-                                                        updateItem(item.id, "unitPrice", Number(value) || 0)
-                                                    }
-                                                    min={0}
-                                                    leftSection="₱"
-                                                    hideControls
-                                                    readOnly={isReadOnly()}
-                                                    disabled={isReadOnly()}
-                                                />
-                                            </Table.Td>
-                                            {hasQtyUnit && (
+                                                )}
                                                 <Table.Td>
-                                                    <Text fw={500}>₱{calculateItemTotal(item).toFixed(2)}</Text>
+                                                    <TextInput
+                                                        className="w-full"
+                                                        placeholder="Enter item description"
+                                                        value={item.particulars}
+                                                        onChange={(e) =>
+                                                            updateItem(item.id, "particulars", e.currentTarget.value)
+                                                        }
+                                                        required
+                                                        readOnly={isReadOnly()}
+                                                        disabled={isReadOnly()}
+                                                    />
                                                 </Table.Td>
-                                            )}
-                                            <Table.Td>
-                                                <ActionIcon
-                                                    color="red"
-                                                    variant="subtle"
-                                                    onClick={() => removeItem(item.id)}
-                                                    disabled={expenseItems.length === 1 || isReadOnly()}
-                                                    className="hover:bg-red-50"
-                                                >
-                                                    <IconTrash size={16} />
-                                                </ActionIcon>
-                                            </Table.Td>
-                                        </Table.Tr>
-                                    ))}
-                                </Table.Tbody>
-                            </Table>
-                        </ScrollArea>
-                    </div>
-
-                    <Divider my="md" />
-
-                    <Group justify="flex-end">
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                            <Text size="lg" fw={700} className="text-gray-800">
-                                Total Amount: ₱{calculateTotalAmount().toFixed(2)}
-                            </Text>
+                                                {hasQtyUnit && (
+                                                    <>
+                                                        <Table.Td>
+                                                            <NumberInput
+                                                                className="w-full"
+                                                                placeholder="Qty"
+                                                                value={item.quantity}
+                                                                onChange={(value) =>
+                                                                    updateItem(item.id, "quantity", Number(value) || 1)
+                                                                }
+                                                                min={1}
+                                                                readOnly={isReadOnly()}
+                                                                disabled={isReadOnly()}
+                                                            />
+                                                        </Table.Td>
+                                                        <Table.Td>
+                                                            <CreatableUnitSelect
+                                                                value={item.unit}
+                                                                onChange={(value) => updateItem(item.id, "unit", value)}
+                                                                unitOptions={unitOptions}
+                                                                onAddUnit={addUnitOption}
+                                                                disabled={isReadOnly()}
+                                                            />
+                                                        </Table.Td>
+                                                    </>
+                                                )}
+                                                <Table.Td>
+                                                    <NumberInput
+                                                        className="w-full"
+                                                        placeholder=""
+                                                        value={item.unitPrice}
+                                                        onChange={(value) =>
+                                                            updateItem(item.id, "unitPrice", Number(value) || 0)
+                                                        }
+                                                        min={0}
+                                                        leftSection="₱"
+                                                        hideControls
+                                                        readOnly={isReadOnly()}
+                                                        disabled={isReadOnly()}
+                                                    />
+                                                </Table.Td>
+                                                {hasQtyUnit && (
+                                                    <Table.Td>
+                                                        <Text fw={500}>₱{calculateItemTotal(item).toFixed(2)}</Text>
+                                                    </Table.Td>
+                                                )}
+                                                <Table.Td>
+                                                    <ActionIcon
+                                                        color="red"
+                                                        variant="subtle"
+                                                        onClick={() => removeItem(item.id)}
+                                                        disabled={expenseItems.length === 1 || isReadOnly()}
+                                                        className="hover:bg-red-50"
+                                                    >
+                                                        <IconTrash size={16} />
+                                                    </ActionIcon>
+                                                </Table.Td>
+                                            </Table.Tr>
+                                        ))}
+                                    </Table.Tbody>
+                                </Table>
+                            </ScrollArea>
                         </div>
-                    </Group>
-                </Card>
 
-                {/* Notes Section */}
-                <Card withBorder>
-                    <Stack gap="md">
-                        <Text fw={500}>Memo</Text>
-                        <Textarea
-                            placeholder="Add note"
-                            value={notes}
-                            onChange={(e) => setNotes(e.currentTarget.value)}
-                            minRows={3}
-                            maxRows={6}
-                            readOnly={isReadOnly()}
-                            disabled={isReadOnly()}
-                        />
-                    </Stack>
-                </Card>
+                        <Divider my="md" />
 
-                {/* Report Attachments */}
-                <ReportAttachmentManager
-                    attachments={reportAttachments}
-                    onAttachmentsChange={setReportAttachments}
-                    initialAttachmentUrns={receiptAttachmentUrns}
-                    maxFiles={10}
-                    maxFileSize={5 * 1024 * 1024} // 5MB
-                    disabled={isSaving || isReadOnly()}
-                    title="Supporting Documents"
-                    description="Upload receipts, invoices, and other supporting documents for this liquidation report"
-                />
-
-                {/* Signature Cards */}
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="xl">
-                    {/* Prepared By */}
-                    <Card withBorder p="md">
-                        <Stack gap="sm" align="center">
-                            <Text size="sm" c="dimmed" fw={500} style={{ alignSelf: "flex-start" }}>
-                                Prepared by
-                            </Text>
-                            <Box
-                                w={200}
-                                h={80}
-                                style={{
-                                    border: "1px solid #dee2e6",
-                                    borderRadius: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    backgroundColor: "#f8f9fa",
-                                    overflow: "hidden",
-                                }}
-                            >
-                                {preparedBySignatureUrl ? (
-                                    <Image
-                                        src={preparedBySignatureUrl}
-                                        alt="Prepared by signature"
-                                        fit="contain"
-                                        w="100%"
-                                        h="100%"
-                                    />
-                                ) : (
-                                    <Text size="xs" c="dimmed">
-                                        Signature
-                                    </Text>
-                                )}
-                            </Box>
-                            <div style={{ textAlign: "center" }}>
-                                <Text fw={600} size="sm">
-                                    {preparedBy || "NAME"}
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    {preparedByPosition || "Position"}
+                        <Group justify="flex-end">
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                                <Text size="lg" fw={700} className="text-gray-800">
+                                    Total Amount: ₱{calculateTotalAmount().toFixed(2)}
                                 </Text>
                             </div>
+                        </Group>
+                    </Card>
+
+                    {/* Notes Section */}
+                    <Card withBorder>
+                        <Stack gap="md">
+                            <Text fw={500}>Memo</Text>
+                            <Textarea
+                                placeholder="Add note"
+                                value={notes}
+                                onChange={(e) => setNotes(e.currentTarget.value)}
+                                minRows={3}
+                                maxRows={6}
+                                readOnly={isReadOnly()}
+                                disabled={isReadOnly()}
+                            />
                         </Stack>
                     </Card>
 
-                    {/* Noted By */}
-                    <Card withBorder p="md">
-                        <Stack gap="sm" align="center">
-                            <Group justify="space-between" w="100%" align="center">
-                                <Text size="sm" c="dimmed" fw={500}>
-                                    Noted by
+                    {/* Report Attachments */}
+                    <ReportAttachmentManager
+                        attachments={reportAttachments}
+                        onAttachmentsChange={setReportAttachments}
+                        initialAttachmentUrns={receiptAttachmentUrns}
+                        maxFiles={10}
+                        maxFileSize={5 * 1024 * 1024} // 5MB
+                        disabled={isSubmitting || isReadOnly()}
+                        title="Supporting Documents"
+                        description="Upload receipts, invoices, and other supporting documents for this liquidation report"
+                    />
+
+                    {/* Signature Cards */}
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" mt="xl">
+                        {/* Prepared By */}
+                        <Card withBorder p="md">
+                            <Stack gap="sm" align="center">
+                                <Text size="sm" c="dimmed" fw={500} style={{ alignSelf: "flex-start" }}>
+                                    Prepared by
                                 </Text>
-                                <Badge
-                                    size="sm"
-                                    color={
-                                        reportStatus === "approved" ||
-                                        reportStatus === "received" ||
-                                        reportStatus === "archived"
-                                            ? "green"
-                                            : selectedNotedByUser
-                                            ? "yellow"
-                                            : "gray"
-                                    }
-                                    variant="light"
+                                <Box
+                                    w={200}
+                                    h={80}
+                                    style={{
+                                        border: "1px solid #dee2e6",
+                                        borderRadius: "8px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        backgroundColor: "#f8f9fa",
+                                        overflow: "hidden",
+                                    }}
                                 >
-                                    {reportStatus === "approved"
-                                        ? "Approved"
-                                        : reportStatus === "received"
-                                        ? "Received"
-                                        : reportStatus === "archived"
-                                        ? "Archived"
-                                        : selectedNotedByUser
-                                        ? "Pending Approval"
-                                        : "Not Assigned"}
-                                </Badge>
-                            </Group>
-                            <Box
-                                w={200}
-                                h={80}
-                                style={{
-                                    border: "1px solid #dee2e6",
-                                    borderRadius: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    backgroundColor: "#f8f9fa",
-                                    overflow: "hidden",
-                                }}
-                            >
-                                {notedBySignatureUrl &&
-                                (reportStatus === "approved" ||
-                                    reportStatus === "received" ||
-                                    reportStatus === "archived") ? (
-                                    <Image
-                                        src={notedBySignatureUrl}
-                                        alt="Noted by signature"
-                                        fit="contain"
-                                        w="100%"
-                                        h="100%"
-                                    />
-                                ) : (
-                                    <Text size="xs" c="dimmed">
-                                        Signature
+                                    {preparedBySignatureUrl ? (
+                                        <Image
+                                            src={preparedBySignatureUrl}
+                                            alt="Prepared by signature"
+                                            fit="contain"
+                                            w="100%"
+                                            h="100%"
+                                        />
+                                    ) : (
+                                        <Text size="xs" c="dimmed">
+                                            Signature
+                                        </Text>
+                                    )}
+                                </Box>
+                                <div style={{ textAlign: "center" }}>
+                                    <Text fw={600} size="sm">
+                                        {preparedBy || "NAME"}
                                     </Text>
-                                )}
-                            </Box>
-                            <div style={{ textAlign: "center" }}>
-                                <Text fw={600} size="sm">
-                                    {selectedNotedByUser
-                                        ? `${selectedNotedByUser.nameFirst} ${selectedNotedByUser.nameLast}`.trim()
-                                        : "N/A"}
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    {selectedNotedByUser?.position || "Position"}
-                                </Text>
-                            </div>
-                        </Stack>
-                    </Card>
-                </SimpleGrid>
+                                    <Text size="xs" c="dimmed">
+                                        {preparedByPosition || "Position"}
+                                    </Text>
+                                </div>
+                            </Stack>
+                        </Card>
 
-                {/* Action Buttons */}
-                <Group justify="flex-end" gap="md">
-                    {/* Disbursement Voucher Button */}
-                    {/* FIXME: Implement this */}
-                    {/* <Button
+                        {/* Noted By */}
+                        <Card withBorder p="md">
+                            <Stack gap="sm" align="center">
+                                <Group justify="space-between" w="100%" align="center">
+                                    <Text size="sm" c="dimmed" fw={500}>
+                                        Noted by
+                                    </Text>
+                                    <Badge
+                                        size="sm"
+                                        color={
+                                            reportStatus === "approved" ||
+                                            reportStatus === "received" ||
+                                            reportStatus === "archived"
+                                                ? "green"
+                                                : selectedNotedByUser
+                                                ? "yellow"
+                                                : "gray"
+                                        }
+                                        variant="light"
+                                    >
+                                        {reportStatus === "approved"
+                                            ? "Approved"
+                                            : reportStatus === "received"
+                                            ? "Received"
+                                            : reportStatus === "archived"
+                                            ? "Archived"
+                                            : selectedNotedByUser
+                                            ? "Pending Approval"
+                                            : "Not Assigned"}
+                                    </Badge>
+                                </Group>
+                                <Box
+                                    w={200}
+                                    h={80}
+                                    style={{
+                                        border: "1px solid #dee2e6",
+                                        borderRadius: "8px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        backgroundColor: "#f8f9fa",
+                                        overflow: "hidden",
+                                    }}
+                                >
+                                    {notedBySignatureUrl &&
+                                    (reportStatus === "approved" ||
+                                        reportStatus === "received" ||
+                                        reportStatus === "archived") ? (
+                                        <Image
+                                            src={notedBySignatureUrl}
+                                            alt="Noted by signature"
+                                            fit="contain"
+                                            w="100%"
+                                            h="100%"
+                                        />
+                                    ) : (
+                                        <Text size="xs" c="dimmed">
+                                            Signature
+                                        </Text>
+                                    )}
+                                </Box>
+                                <div style={{ textAlign: "center" }}>
+                                    <Text fw={600} size="sm">
+                                        {selectedNotedByUser
+                                            ? `${selectedNotedByUser.nameFirst} ${selectedNotedByUser.nameLast}`.trim()
+                                            : "N/A"}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        {selectedNotedByUser?.position || "Position"}
+                                    </Text>
+                                </div>
+                            </Stack>
+                        </Card>
+                    </SimpleGrid>
+
+                    {/* Action Buttons */}
+                    <Stack gap="md">
+                        {/* Disbursement Voucher Button */}
+                        <Group justify="flex-end">
+                            {/* FIXME: Implement this */}
+                            {/* <Button
                             leftSection={<IconFileText size={16} />}
                             variant="light"
                             onClick={() => router.push(`/reports/disbursement-voucher?category=${category}`)}
@@ -1703,35 +1746,10 @@ function LiquidationReportContent() {
                         >
                             Create Disbursement Voucher
                         </Button> */}
-                    <Button
-                        variant="outline"
-                        onClick={handleClose}
-                        className="hover:bg-gray-100 hide-in-pdf"
-                        disabled={isSaving}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => setPdfModalOpened(true)}
-                        className="hide-in-pdf"
-                        leftSection={<IconFileTypePdf size={16} />}
-                    >
-                        Export PDF
-                    </Button>
-                    <Tooltip
-                        label={
-                            isReadOnly()
-                                ? "Submission is disabled in read-only mode"
-                                : !hasValidExpenses()
-                                ? "Add expense details"
-                                : ""
-                        }
-                        disabled={isReadOnly() ? false : hasValidExpenses()}
-                        position="top"
-                        withArrow
-                    >
-                        <div>
+                        </Group>
+
+                        {/* Main Action Buttons */}
+                        <Group justify="flex-end" gap="md">
                             <SubmitForReviewButton
                                 reportType="liquidation"
                                 reportPeriod={{
@@ -1743,11 +1761,7 @@ function LiquidationReportContent() {
                                     category: category || "",
                                 }}
                                 disabled={
-                                    (reportStatus !== null &&
-                                        reportStatus !== "draft" &&
-                                        reportStatus !== "rejected") ||
-                                    isReadOnly() ||
-                                    !hasValidExpenses()
+                                    reportStatus !== null && reportStatus !== "draft" && reportStatus !== "rejected"
                                 }
                                 onSuccess={() => {
                                     notifications.show({
@@ -1760,112 +1774,115 @@ function LiquidationReportContent() {
                                     }, 1000);
                                 }}
                             />
-                        </div>
-                    </Tooltip>
-                    <Tooltip
-                        label={
-                            isReadOnly()
-                                ? "Edits are disabled in read-only mode"
-                                : !hasValidExpenses()
-                                ? "Add expense details"
-                                : ""
-                        }
-                        disabled={isReadOnly() ? false : hasValidExpenses()}
-                        position="top"
-                        withArrow
+                            <Button
+                                variant="outline"
+                                onClick={handleClose}
+                                className="hover:bg-gray-100 hide-in-pdf"
+                                disabled={isSubmitting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => setPdfModalOpened(true)}
+                                className="hide-in-pdf"
+                                leftSection={<IconFileTypePdf size={16} />}
+                            >
+                                Export PDF
+                            </Button>
+                            <SplitButton
+                                onSubmit={handleSubmitReport}
+                                onSaveDraft={handleSaveDraft}
+                                onPreview={handlePreview}
+                                className="bg-blue-600 hover:bg-blue-700"
+                                disabled={
+                                    isSubmitting ||
+                                    !reportPeriod ||
+                                    !category ||
+                                    expenseItems.some((item) => !item.date || !item.particulars) ||
+                                    expenseItems.every((item) => !item.particulars && item.unitPrice === 0) ||
+                                    isReadOnly()
+                                }
+                            >
+                                {isSubmitting ? "Submitting..." : "Submit Report"}
+                            </SplitButton>
+                        </Group>
+                    </Stack>
+
+                    {/* Approval Modal */}
+                    <Modal
+                        opened={approvalModalOpened}
+                        onClose={() => setApprovalModalOpened(false)}
+                        title="Confirm Report Approval"
+                        centered
+                        size="md"
                     >
-                        <Button
-                            onClick={handleSaveReport}
-                            className="bg-blue-600 hover:bg-blue-700"
-                            leftSection={<IconDeviceFloppy size={16} />}
-                            disabled={
-                                isSaving ||
-                                !reportPeriod ||
-                                !category ||
-                                expenseItems.some((item) => !item.date || !item.particulars) ||
-                                expenseItems.every((item) => !item.particulars && item.unitPrice === 0) ||
-                                isReadOnly() ||
-                                !hasValidExpenses()
-                            }
-                        >
-                            {isSaving ? "Saving..." : "Save"}
-                        </Button>
-                    </Tooltip>
-                </Group>
+                        <Stack gap="md">
+                            <Text size="sm">
+                                Are you sure you want to approve this liquidation report as{" "}
+                                <strong>
+                                    {selectedNotedByUser?.nameFirst} {selectedNotedByUser?.nameLast}
+                                </strong>
+                                ?
+                            </Text>
 
-                {/* Approval Modal */}
-                <Modal
-                    opened={approvalModalOpened}
-                    onClose={() => setApprovalModalOpened(false)}
-                    title="Confirm Report Approval"
-                    centered
-                    size="md"
-                >
-                    <Stack gap="md">
-                        <Text size="sm">
-                            Are you sure you want to approve this liquidation report as{" "}
-                            <strong>
-                                {selectedNotedByUser?.nameFirst} {selectedNotedByUser?.nameLast}
-                            </strong>
-                            ?
-                        </Text>
+                            <Text size="sm" c="dimmed">
+                                This action will add your signature to the report and mark it as approved.
+                            </Text>
 
-                        <Text size="sm" c="dimmed">
-                            This action will add your signature to the report and mark it as approved.
-                        </Text>
+                            <Checkbox
+                                label="I confirm that I have reviewed this report and approve it"
+                                checked={approvalCheckbox}
+                                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                                    setApprovalCheckbox(event.currentTarget.checked)
+                                }
+                            />
 
-                        <Checkbox
-                            label="I confirm that I have reviewed this report and approve it"
-                            checked={approvalCheckbox}
-                            onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                                setApprovalCheckbox(event.currentTarget.checked)
-                            }
-                        />
+                            <Group justify="flex-end" mt="md">
+                                <Button variant="outline" onClick={() => setApprovalModalOpened(false)}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={handleApprovalConfirm} disabled={!approvalCheckbox} color="green">
+                                    Confirm Approval
+                                </Button>
+                            </Group>
+                        </Stack>
+                    </Modal>
 
-                        <Group justify="flex-end" mt="md">
-                            <Button variant="outline" onClick={() => setApprovalModalOpened(false)}>
-                                Cancel
-                            </Button>
-                            <Button onClick={handleApprovalConfirm} disabled={!approvalCheckbox} color="green">
-                                Confirm Approval
-                            </Button>
-                        </Group>
-                    </Stack>
-                </Modal>
+                    {/* PDF Export Modal */}
+                    <Modal
+                        opened={pdfModalOpened}
+                        onClose={() => setPdfModalOpened(false)}
+                        title={getFileName()}
+                        size="90%"
+                        centered
+                        padding="sm"
+                    >
+                        <Stack gap="xs">
+                            <div
+                                style={{
+                                    maxHeight: "70vh",
+                                    overflowY: "auto",
+                                    border: "1px solid #e0e0e0",
+                                    borderRadius: "8px",
+                                }}
+                            >
+                                <PDFReportTemplate />
+                            </div>
 
-                {/* PDF Export Modal */}
-                <Modal
-                    opened={pdfModalOpened}
-                    onClose={() => setPdfModalOpened(false)}
-                    title={getFileName()}
-                    size="90%"
-                    centered
-                    padding="sm"
-                >
-                    <Stack gap="xs">
-                        <div
-                            style={{
-                                maxHeight: "70vh",
-                                overflowY: "auto",
-                                border: "1px solid #e0e0e0",
-                                borderRadius: "8px",
-                            }}
-                        >
-                            <PDFReportTemplate />
-                        </div>
-
-                        <Group justify="flex-end" gap="md">
-                            <Button variant="outline" onClick={() => setPdfModalOpened(false)}>
-                                Cancel
-                            </Button>
-                            <Button onClick={exportToPDF} leftSection={<IconDownload size={16} />}>
-                                Download
-                            </Button>
-                        </Group>
-                    </Stack>
-                </Modal>
-            </Stack>
-        </div>
+                            <Group justify="flex-end" gap="md">
+                                <Button variant="outline" onClick={() => setPdfModalOpened(false)}>
+                                    Cancel
+                                </Button>
+                                <Button onClick={exportToPDF} leftSection={<IconDownload size={16} />}>
+                                    Download
+                                </Button>
+                            </Group>
+                        </Stack>
+                    </Modal>
+                </Stack>
+            </div>
+        </Container>
     );
 }
 

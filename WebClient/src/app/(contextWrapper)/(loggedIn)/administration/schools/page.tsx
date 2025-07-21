@@ -8,6 +8,7 @@ import { customLogger } from "@/lib/api/customLogger";
 import { GetAllSchools, GetSchoolLogo, GetSchoolQuantity } from "@/lib/api/school";
 import { useUser } from "@/lib/providers/user";
 import { formatUTCDate, getRelativeTime } from "@/lib/utils/date";
+import { useSchoolManagementWebSocket } from "@/lib/hooks/useSchoolManagementWebSocket";
 import {
     ActionIcon,
     Anchor,
@@ -30,11 +31,14 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
+    IconChevronDown,
+    IconChevronUp,
     IconEdit,
     IconLock,
     IconLockOpen,
     IconPlus,
     IconSearch,
+    IconSelector,
     IconUser,
     IconUserExclamation,
 } from "@tabler/icons-react";
@@ -67,9 +71,122 @@ export default function SchoolsPage(): JSX.Element {
     //Handler for School Creation
     const [addModalOpen, setAddModalOpen] = useState(false);
 
+    // Sorting state
+    const [sortField, setSortField] = useState<string | null>(null);
+    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+    // WebSocket integration for real-time school management updates
+    useSchoolManagementWebSocket({
+        onSchoolCreated: (newSchool) => {
+            customLogger.info("School created via WebSocket", newSchool);
+
+            // Check if school already exists to prevent duplication
+            setAllSchools((prevSchools) => {
+                const schoolExists = prevSchools.some((school) => school.id === newSchool.id);
+                if (schoolExists) {
+                    customLogger.debug("School already exists in list, skipping WebSocket add", newSchool.id);
+                    return prevSchools;
+                }
+                return [newSchool, ...prevSchools];
+            });
+
+            // Show notification
+            // notifications.show({
+            //     id: `school-created-${newSchool.id}`,
+            //     title: "New School Created",
+            //     message: `School ${newSchool.name} has been created.`,
+            //     color: "green",
+            //     icon: <IconPlus />,
+            // });
+        },
+        onSchoolUpdated: (schoolId, updateData) => {
+            customLogger.info("School updated via WebSocket", { schoolId, updateData });
+            setAllSchools((prevSchools) =>
+                prevSchools.map((school) =>
+                    school.id?.toString() === schoolId
+                        ? { ...school, ...(updateData.school as Partial<School>) }
+                        : school
+                )
+            );
+        },
+        onSchoolDeactivated: (schoolId) => {
+            customLogger.info("School deactivated via WebSocket", schoolId);
+
+            let schoolToNotify: School | undefined;
+            setAllSchools((prevSchools) => {
+                const updatedSchools = prevSchools.map((school) => {
+                    if (school.id?.toString() === schoolId) {
+                        schoolToNotify = school;
+                        return { ...school, deactivated: true };
+                    }
+                    return school;
+                });
+                return updatedSchools;
+            });
+
+            // Show notification if school was found
+            if (schoolToNotify) {
+                notifications.show({
+                    id: `school-deactivated-${schoolId}`,
+                    title: "School Deactivated",
+                    message: `School ${schoolToNotify.name} has been deactivated.`,
+                    color: "orange",
+                    icon: <IconLock />,
+                });
+            }
+        },
+        onSchoolReactivated: (schoolId) => {
+            customLogger.info("School reactivated via WebSocket", schoolId);
+
+            let schoolToNotify: School | undefined;
+            setAllSchools((prevSchools) => {
+                const updatedSchools = prevSchools.map((school) => {
+                    if (school.id?.toString() === schoolId) {
+                        schoolToNotify = school;
+                        return { ...school, deactivated: false };
+                    }
+                    return school;
+                });
+                return updatedSchools;
+            });
+
+            // Show notification if school was found
+            if (schoolToNotify) {
+                notifications.show({
+                    id: `school-reactivated-${schoolId}`,
+                    title: "School Reactivated",
+                    message: `School ${schoolToNotify.name} has been reactivated.`,
+                    color: "green",
+                    icon: <IconLockOpen />,
+                });
+            }
+        },
+        enabled: true,
+    });
+
     const handleSearch = () => {
         setCurrentPage(1);
     };
+
+    const handleSort = (field: string) => {
+        if (sortField === field) {
+            // If clicking the same field, toggle direction
+            setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+        } else {
+            // If clicking a new field, set it and default to ascending
+            setSortField(field);
+            setSortDirection("asc");
+        }
+        setCurrentPage(1); // Reset to first page when sorting
+    };
+
+    const getSortIcon = (field: string) => {
+        if (sortField !== field) {
+            return <IconSelector size={14} style={{ opacity: 0.5 }} />;
+        }
+        return sortDirection === "asc" ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />;
+    };
+
     const handleEdit = (index: number, school: School) => {
         setEditIndex(index);
         setEditSchool(school);
@@ -214,6 +331,56 @@ export default function SchoolsPage(): JSX.Element {
                 return true;
             });
         }
+
+        // Apply sorting
+        if (sortField) {
+            filtered.sort((a, b) => {
+                let aValue: string;
+                let bValue: string;
+
+                switch (sortField) {
+                    case "name":
+                        aValue = a.name?.toLowerCase() || "";
+                        bValue = b.name?.toLowerCase() || "";
+                        break;
+                    case "address":
+                        aValue = a.address?.toLowerCase() || "";
+                        bValue = b.address?.toLowerCase() || "";
+                        break;
+                    case "phone":
+                        aValue = a.phone?.toLowerCase() || "";
+                        bValue = b.phone?.toLowerCase() || "";
+                        break;
+                    case "email":
+                        aValue = a.email?.toLowerCase() || "";
+                        bValue = b.email?.toLowerCase() || "";
+                        break;
+                    case "website":
+                        aValue = a.website?.toLowerCase() || "";
+                        bValue = b.website?.toLowerCase() || "";
+                        break;
+                    case "status":
+                        aValue = a.deactivated ? "deactivated" : "active";
+                        bValue = b.deactivated ? "deactivated" : "active";
+                        break;
+                    case "lastModified":
+                        aValue = a.lastModified || "";
+                        bValue = b.lastModified || "";
+                        break;
+                    case "dateCreated":
+                        aValue = a.dateCreated || "";
+                        bValue = b.dateCreated || "";
+                        break;
+                    default:
+                        return 0;
+                }
+
+                if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+                if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+                return 0;
+            });
+        }
+
         setTotalSchools(filtered.length);
         setTotalPages(Math.max(1, Math.ceil(filtered.length / schoolPerPage)));
 
@@ -224,7 +391,7 @@ export default function SchoolsPage(): JSX.Element {
         const start = (safePage - 1) * schoolPerPage;
         const end = start + schoolPerPage;
         setSchools(filtered.slice(start, end));
-    }, [allSchools, searchTerm, statusFilter, schoolPerPage, currentPage]);
+    }, [allSchools, searchTerm, statusFilter, schoolPerPage, currentPage, sortField, sortDirection]);
 
     customLogger.debug("Rendering SchoolsPage");
     return (
@@ -254,126 +421,195 @@ export default function SchoolsPage(): JSX.Element {
                     </ActionIcon>
                 </Flex>
             </Flex>
-            <Table highlightOnHover stickyHeader>
-                <TableThead>
-                    <TableTr>
-                        <TableTh></TableTh>
-                        <TableTh>School Name</TableTh>
-                        <TableTh>Address</TableTh>
-                        <TableTh>Phone Number</TableTh>
-                        <TableTh>Email</TableTh>
-                        <TableTh>Website</TableTh>
-                        <TableTh>Status</TableTh>
-                        <TableTh>Last Modified</TableTh>
-                        <TableTh>Date Created</TableTh>
-                        <TableTh></TableTh>
-                    </TableTr>
-                </TableThead>
-                <TableTbody>
-                    {schools.map((school, index) => (
-                        <TableTr key={index} bg={selected.has(index) ? "gray.1" : undefined}>
-                            {/* Checkbox and Logo */}
-                            <TableTd>
-                                <Group>
-                                    <Checkbox checked={selected.has(index)} onChange={() => toggleSelected(index)} />
-                                    {school.logoUrn && school.id != null ? (
-                                        <Avatar radius="xl" src={fetchSchoolLogo(school.logoUrn)}>
-                                            <IconUser />
-                                        </Avatar>
-                                    ) : (
-                                        <Avatar radius="xl" name={school.name} color="initials" />
-                                    )}
+            <Table.ScrollContainer minWidth={1000} type="native">
+                <Table highlightOnHover stickyHeader>
+                    <TableThead>
+                        <TableTr>
+                            <TableTh></TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("name")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>School Name</Text>
+                                    {getSortIcon("name")}
                                 </Group>
-                            </TableTd>
-                            <TableTd>{school.name}</TableTd>
-                            <TableTd c={school.address ? undefined : "dimmed"}>
-                                {school.address ? school.address : "N/A"}
-                            </TableTd>
-                            <TableTd c={school.phone ? undefined : "dimmed"}>
-                                {school.phone ? (
-                                    <Anchor
-                                        href={`tel:${school.phone}`}
-                                        underline="never"
-                                        size="sm"
-                                        rel="noopener noreferrer"
-                                    >
-                                        {school.phone}
-                                    </Anchor>
-                                ) : (
-                                    <Text size="sm">N/A</Text>
-                                )}
-                            </TableTd>
-                            <TableTd c={school.email ? undefined : "dimmed"}>
-                                {school.email ? (
-                                    <Anchor
-                                        href={`mailto:${school.email}`}
-                                        underline="never"
-                                        size="sm"
-                                        rel="noopener noreferrer"
-                                    >
-                                        {school.email}
-                                    </Anchor>
-                                ) : (
-                                    <Text size="sm">N/A</Text>
-                                )}
-                            </TableTd>
-                            <TableTd c={school.website ? undefined : "dimmed"}>
-                                {school.website ? (
-                                    <Anchor
-                                        href={
-                                            school.website.startsWith("http")
-                                                ? school.website
-                                                : `https://${school.website}`
-                                        }
-                                        underline="never"
-                                        size="sm"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                    >
-                                        {school.website.replace(/^https?:\/\//, "").split("/")[0]}
-                                    </Anchor>
-                                ) : (
-                                    <Text size="sm">N/A</Text>
-                                )}
-                            </TableTd>
-                            <TableTd>
-                                <Tooltip
-                                    label={school.deactivated ? "School is deactivated" : "School is active"}
-                                    position="bottom"
-                                    withArrow
-                                >
-                                    {school.deactivated ? <IconLock color="red" /> : <IconLockOpen color="green" />}
-                                </Tooltip>
-                            </TableTd>
-                            <Tooltip label={formatUTCDate(school.lastModified, "YYYY-MM-DD HH:mm:ss")}>
-                                <TableTd c={school.lastModified ? undefined : "dimmed"}>
-                                    {getRelativeTime(school.lastModified)}
-                                </TableTd>
-                            </Tooltip>
-                            <Tooltip label={formatUTCDate(school.dateCreated, "YYYY-MM-DD HH:mm:ss")}>
-                                <TableTd c={school.dateCreated ? undefined : "dimmed"}>
-                                    {getRelativeTime(school.dateCreated)}
-                                </TableTd>
-                            </Tooltip>
-                            <TableTd>
-                                <Tooltip label="Edit School" position="bottom" openDelay={500} withArrow>
-                                    <ActionIcon
-                                        disabled={
-                                            userCtx.userInfo?.schoolId === school.id
-                                                ? !userCtx.userPermissions?.includes("schools:self:modify")
-                                                : !userCtx.userPermissions?.includes("schools:global:modify")
-                                        }
-                                        variant="light"
-                                        onClick={() => handleEdit(index, school)}
-                                    >
-                                        <IconEdit size={16} />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </TableTd>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("address")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Address</Text>
+                                    {getSortIcon("address")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("phone")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Phone Number</Text>
+                                    {getSortIcon("phone")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("email")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Email</Text>
+                                    {getSortIcon("email")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("website")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Website</Text>
+                                    {getSortIcon("website")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("status")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Status</Text>
+                                    {getSortIcon("status")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("lastModified")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Last Modified</Text>
+                                    {getSortIcon("lastModified")}
+                                </Group>
+                            </TableTh>
+                            <TableTh
+                                style={{ cursor: "pointer", userSelect: "none" }}
+                                onClick={() => handleSort("dateCreated")}
+                            >
+                                <Group gap="xs" justify="space-between" wrap="nowrap">
+                                    <Text style={{ whiteSpace: "nowrap" }}>Date Created</Text>
+                                    {getSortIcon("dateCreated")}
+                                </Group>
+                            </TableTh>
+                            <TableTh></TableTh>
                         </TableTr>
-                    ))}
-                </TableTbody>
-            </Table>
+                    </TableThead>
+                    <TableTbody>
+                        {schools.map((school, index) => (
+                            <TableTr key={index} bg={selected.has(index) ? "gray.1" : undefined}>
+                                {/* Checkbox and Logo */}
+                                <TableTd>
+                                    <Group>
+                                        <Checkbox
+                                            checked={selected.has(index)}
+                                            onChange={() => toggleSelected(index)}
+                                        />
+                                        {school.logoUrn && school.id != null ? (
+                                            <Avatar radius="xl" src={fetchSchoolLogo(school.logoUrn)}>
+                                                <IconUser />
+                                            </Avatar>
+                                        ) : (
+                                            <Avatar radius="xl" name={school.name} color="initials" />
+                                        )}
+                                    </Group>
+                                </TableTd>
+                                <TableTd>{school.name}</TableTd>
+                                <TableTd c={school.address ? undefined : "dimmed"}>
+                                    {school.address ? school.address : "N/A"}
+                                </TableTd>
+                                <TableTd c={school.phone ? undefined : "dimmed"}>
+                                    {school.phone ? (
+                                        <Anchor
+                                            href={`tel:${school.phone}`}
+                                            underline="never"
+                                            size="sm"
+                                            rel="noopener noreferrer"
+                                        >
+                                            {school.phone}
+                                        </Anchor>
+                                    ) : (
+                                        <Text size="sm">N/A</Text>
+                                    )}
+                                </TableTd>
+                                <TableTd c={school.email ? undefined : "dimmed"}>
+                                    {school.email ? (
+                                        <Anchor
+                                            href={`mailto:${school.email}`}
+                                            underline="never"
+                                            size="sm"
+                                            rel="noopener noreferrer"
+                                        >
+                                            {school.email}
+                                        </Anchor>
+                                    ) : (
+                                        <Text size="sm">N/A</Text>
+                                    )}
+                                </TableTd>
+                                <TableTd c={school.website ? undefined : "dimmed"}>
+                                    {school.website ? (
+                                        <Anchor
+                                            href={
+                                                school.website.startsWith("http")
+                                                    ? school.website
+                                                    : `https://${school.website}`
+                                            }
+                                            underline="never"
+                                            size="sm"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            {school.website.replace(/^https?:\/\//, "").split("/")[0]}
+                                        </Anchor>
+                                    ) : (
+                                        <Text size="sm">N/A</Text>
+                                    )}
+                                </TableTd>
+                                <TableTd>
+                                    <Tooltip
+                                        label={school.deactivated ? "School is deactivated" : "School is active"}
+                                        position="bottom"
+                                        withArrow
+                                    >
+                                        {school.deactivated ? <IconLock color="red" /> : <IconLockOpen color="green" />}
+                                    </Tooltip>
+                                </TableTd>
+                                <Tooltip label={formatUTCDate(school.lastModified, "YYYY-MM-DD HH:mm:ss")}>
+                                    <TableTd c={school.lastModified ? undefined : "dimmed"}>
+                                        {getRelativeTime(school.lastModified)}
+                                    </TableTd>
+                                </Tooltip>
+                                <Tooltip label={formatUTCDate(school.dateCreated, "YYYY-MM-DD HH:mm:ss")}>
+                                    <TableTd c={school.dateCreated ? undefined : "dimmed"}>
+                                        {getRelativeTime(school.dateCreated)}
+                                    </TableTd>
+                                </Tooltip>
+                                <TableTd>
+                                    <Tooltip label="Edit School" position="bottom" openDelay={500} withArrow>
+                                        <ActionIcon
+                                            disabled={
+                                                userCtx.userInfo?.schoolId === school.id
+                                                    ? !userCtx.userPermissions?.includes("schools:self:modify")
+                                                    : !userCtx.userPermissions?.includes("schools:global:modify")
+                                            }
+                                            variant="light"
+                                            onClick={() => handleEdit(index, school)}
+                                        >
+                                            <IconEdit size={16} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </TableTd>
+                            </TableTr>
+                        ))}
+                    </TableTbody>
+                </Table>
+            </Table.ScrollContainer>
             <Group justify="space-between" align="center" m="md">
                 <div></div>
                 <Stack align="center" justify="center" gap="sm">
@@ -440,9 +676,9 @@ export default function SchoolsPage(): JSX.Element {
             <CreateSchoolComponent
                 modalOpen={addModalOpen}
                 setModalOpen={setAddModalOpen}
-                onSchoolCreate={(newSchool) => {
-                    setSchools((prevSchools) => [...prevSchools, newSchool]);
-                    setAllSchools((prevAllSchools) => [...prevAllSchools, newSchool]);
+                onSchoolCreate={() => {
+                    // setSchools((prevSchools) => [...prevSchools, newSchool]);
+                    // setAllSchools((prevAllSchools) => [...prevAllSchools, newSchool]);
                 }}
             />
         </>

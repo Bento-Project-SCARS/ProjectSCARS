@@ -34,6 +34,7 @@ from centralserver.internals.user_handler import (
     update_user_signature,
     validate_password,
 )
+from centralserver.internals.websocket_manager import websocket_manager
 
 logger = LoggerFactory().get_logger(__name__)
 
@@ -666,6 +667,19 @@ async def change_user_password_endpoint(
 
     session.commit()
     session.refresh(user)
+
+    # Send WebSocket notification for password change
+    try:
+
+        await websocket_manager.send_user_update(
+            user_id=user.id,
+            update_type="password_changed",
+            data={"lastModified": user.lastModified.isoformat()},
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to send WebSocket notification for password change: %s", e
+        )
 
     logger.info("Password changed successfully for user %s", user.username)
     return {"message": "Password changed successfully"}

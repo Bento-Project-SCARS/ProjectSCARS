@@ -239,6 +239,8 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
     const handleButtonState = (step: number) => {
         if (step === maxSteps) {
             setNextLabel("Finish");
+        } else if (step === maxSteps + 1) {
+            setNextLabel("Go to Dashboard");
         } else {
             setNextLabel("Next");
         }
@@ -265,9 +267,9 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
 
         if (active < maxSteps) {
             setActive((current) => current + 1);
-        }
-        if (active === maxSteps) {
+        } else if (active === maxSteps) {
             handleSubmit();
+            router.push("/");
         }
 
         handleButtonState(active + 1);
@@ -452,8 +454,8 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
 
             userCtx.updateUserInfo(newResult.data[0], newResult.data[1]);
 
-            // Redirect to the home page after successful update
-            router.push("/");
+            // Show completed step
+            setActive(maxSteps + 1);
         } catch (error) {
             customLogger.error("Error updating user information:", error);
             notifications.show({
@@ -535,67 +537,153 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
     }, []);
 
     return (
-        <Modal opened={true} onClose={() => {}} size="auto" centered fullScreen withCloseButton={false}>
-            <form
-                onKeyDown={(e) => {
-                    if (e.key === "Enter" && active < maxSteps) {
-                        e.preventDefault();
-                        nextStep();
-                    }
-                }}
+        <Modal
+            opened={true}
+            onClose={() => {}}
+            size="auto"
+            centered
+            fullScreen
+            withCloseButton={false}
+            styles={{
+                content: {
+                    overflow: "auto",
+                    height: "100vh",
+                },
+                body: {
+                    padding: 0,
+                    height: "100vh",
+                    display: "flex",
+                    flexDirection: "column",
+                },
+            }}
+        >
+            <Container
+                size="lg"
+                py={{ base: "xs", sm: "md", lg: "xl" }}
+                style={{ flex: 1, display: "flex", flexDirection: "column" }}
             >
-                <Stepper active={active} onStepClick={setActive} allowNextStepsSelect={false}>
-                    {/* Welcome step */}
-                    <Stepper.Step label="Welcome" description={`Welcome to ${Program.name}!`}>
-                        <Group justify="center" mb="xl">
-                            <Stack align="center" justify="center" pt="xl">
-                                <ProgramTitleCenter classes={classes} logoControls={logoControls} />
-                                <Container size="xs" mt="xl">
-                                    <Text mt="md" ta="center">
-                                        Hello! Welcome to{" "}
-                                        <strong>
-                                            {Program.name}: {Program.description}
-                                        </strong>
-                                    </Text>
-                                    <Text mt="md" ta="center" mb="md">
-                                        This is your first time here, so we will guide you through the steps to set up
-                                        your account. In this onboarding process, you will be able to...
-                                    </Text>
-                                    <List spacing="xs" center>
-                                        {welcomeSteps.map(([step, hasPermission], index) => (
-                                            <List.Item
-                                                key={index}
-                                                icon={
-                                                    <ThemeIcon
-                                                        color={hasPermission ? "green" : "gray"}
-                                                        size={20}
-                                                        radius="xl"
-                                                    >
-                                                        {hasPermission ? <IconCircleCheck /> : <IconCircleX />}
-                                                    </ThemeIcon>
-                                                }
-                                                c={hasPermission ? "dark" : "gray"}
-                                            >
-                                                <Text
-                                                    size="sm"
-                                                    style={{
-                                                        textDecoration: hasPermission ? "none" : "line-through",
-                                                    }}
-                                                >
-                                                    {step}
-                                                </Text>
-                                            </List.Item>
-                                        ))}
-                                    </List>
-                                </Container>
-                            </Stack>
+                <form
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" && active < maxSteps) {
+                            e.preventDefault();
+                            nextStep();
+                        }
+                    }}
+                    style={{ height: "100%", display: "flex", flexDirection: "column" }}
+                >
+                    {/* Mobile stepper - hidden but required for state management */}
+                    <Stepper
+                        active={active}
+                        onStepClick={setActive}
+                        allowNextStepsSelect={false}
+                        hiddenFrom="sm"
+                        styles={{
+                            root: {
+                                display: "none",
+                            },
+                        }}
+                    >
+                        {/* Empty placeholder steps for mobile */}
+                        <Stepper.Step />
+                        <Stepper.Step />
+                        <Stepper.Step />
+                        <Stepper.Step />
+                        <Stepper.Step />
+                        <Stepper.Step />
+                        <Stepper.Step />
+                    </Stepper>
+
+                    {/* Desktop Stepper - visible from sm and up */}
+                    <Stepper
+                        active={active}
+                        onStepClick={setActive}
+                        allowNextStepsSelect={false}
+                        visibleFrom="sm"
+                        mb="xl"
+                        size="sm"
+                        styles={{
+                            step: {
+                                minWidth: "auto",
+                            },
+                            stepLabel: {
+                                fontSize: "var(--mantine-font-size-xs)",
+                                fontWeight: 500,
+                            },
+                            stepDescription: {
+                                display: "none", // Hide descriptions to save space
+                            },
+                        }}
+                    >
+                        {/* Compact stepper content only for desktop */}
+                        <Stepper.Step label="Welcome" />
+                        {userPermissions?.includes("users:self:modify:name") && <Stepper.Step label="Name" />}
+                        {userPermissions?.includes("users:self:modify:username") && <Stepper.Step label="Username" />}
+                        {userPermissions?.includes("users:self:modify:position") && <Stepper.Step label="Position" />}
+                        {userPermissions?.includes("users:self:modify:email") && <Stepper.Step label="Email" />}
+                        {userPermissions?.includes("users:self:modify:password") && <Stepper.Step label="Password" />}
+                        <Stepper.Step label="OAuth" />
+                    </Stepper>
+
+                    {/* Content area - responsive for both mobile and desktop */}
+                    <Stack style={{ flex: 1 }} justify="center">
+                        {/* Mobile progress indicator */}
+                        <Group hiddenFrom="sm" justify="space-between" mb="md" px="sm">
+                            <Text size="sm" c="dimmed">
+                                {active === maxSteps ? "Complete!" : `Step ${active + 1} of ${maxSteps + 1}`}
+                            </Text>
+                            <Progress value={active === maxSteps ? 100 : (active / maxSteps) * 100} w={100} size="sm" />
                         </Group>
-                    </Stepper.Step>
-                    {/* Name step */}
-                    {userPermissions?.includes("users:self:modify:name") && (
-                        <Stepper.Step label="Set Name" description={`Set your name`}>
-                            <Group justify="center" mb="xl">
-                                <Stack align="center" justify="center" pt="xl">
+
+                        {/* Step Content - This will be the main content area */}
+                        <Stack align="center" justify="center" style={{ flex: 1 }}>
+                            {/* Welcome step */}
+                            {active === 0 && (
+                                <>
+                                    <ProgramTitleCenter classes={classes} logoControls={logoControls} />
+                                    <Container size="xs" mt="xl">
+                                        <Text mt="md" ta="center">
+                                            Hello! Welcome to{" "}
+                                            <strong>
+                                                {Program.name}: {Program.description}
+                                            </strong>
+                                        </Text>
+                                        <Text mt="md" ta="center" mb="md">
+                                            This is your first time here, so we will guide you through the steps to set
+                                            up your account. In this onboarding process, you will be able to...
+                                        </Text>
+                                        <List spacing="xs" center>
+                                            {welcomeSteps.map(([step, hasPermission], index) => (
+                                                <List.Item
+                                                    key={index}
+                                                    icon={
+                                                        <ThemeIcon
+                                                            color={hasPermission ? "green" : "gray"}
+                                                            size={20}
+                                                            radius="xl"
+                                                        >
+                                                            {hasPermission ? <IconCircleCheck /> : <IconCircleX />}
+                                                        </ThemeIcon>
+                                                    }
+                                                    c={hasPermission ? "dark" : "gray"}
+                                                >
+                                                    <Text
+                                                        size="sm"
+                                                        style={{
+                                                            textDecoration: hasPermission ? "none" : "line-through",
+                                                        }}
+                                                    >
+                                                        {step}
+                                                    </Text>
+                                                </List.Item>
+                                            ))}
+                                        </List>
+                                    </Container>
+                                </>
+                            )}
+
+                            {/* Name step */}
+                            {getCurrentStepType(active) === "name" && (
+                                <>
                                     <ProgramTitleCenter classes={classes} logoControls={logoControls} />
                                     <Container size="xs" mt="xl">
                                         <Text mt="md" ta="center">
@@ -603,7 +691,12 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             experience. This will be used in reports, notifications, and other
                                             communications.
                                         </Text>
-                                        <Flex justify="center" align="top" gap="md">
+                                        <Flex
+                                            justify="center"
+                                            align="top"
+                                            gap="md"
+                                            direction={{ base: "column", sm: "row" }}
+                                        >
                                             <TextInput
                                                 required
                                                 mt="md"
@@ -648,15 +741,11 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             />
                                         </Flex>
                                     </Container>
-                                </Stack>
-                            </Group>
-                        </Stepper.Step>
-                    )}
-                    {/* Username step */}
-                    {userPermissions?.includes("users:self:modify:username") && (
-                        <Stepper.Step label="Set Username" description={`Set your username`}>
-                            <Group justify="center" mb="xl">
-                                <Stack align="center" justify="center" pt="xl">
+                                </>
+                            )}
+                            {/* Username step */}
+                            {getCurrentStepType(active) === "username" && (
+                                <>
                                     <ProgramTitleCenter classes={classes} logoControls={logoControls} />
                                     <Container size="xs" mt="xl">
                                         <Text mt="md" ta="center">
@@ -687,15 +776,11 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             }
                                         />
                                     </Container>
-                                </Stack>
-                            </Group>
-                        </Stepper.Step>
-                    )}
-                    {/* Position step */}
-                    {userPermissions?.includes("users:self:modify:position") && (
-                        <Stepper.Step label="Set Position" description={`Set your position`}>
-                            <Group justify="center" mb="xl">
-                                <Stack align="center" justify="center" pt="xl">
+                                </>
+                            )}
+                            {/* Position step */}
+                            {getCurrentStepType(active) === "position" && (
+                                <>
                                     <ProgramTitleCenter classes={classes} logoControls={logoControls} />
                                     <Container size="xs" mt="xl">
                                         <Text mt="md" ta="center">
@@ -710,15 +795,12 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             {...userChange.getInputProps("position")}
                                         />
                                     </Container>
-                                </Stack>
-                            </Group>
-                        </Stepper.Step>
-                    )}
-                    {/* Email step */}
-                    {userPermissions?.includes("users:self:modify:email") && (
-                        <Stepper.Step label="Set Email" description={`Set your email`}>
-                            <Group justify="center" mb="xl">
-                                <Stack align="center" justify="center" pt="xl">
+                                </>
+                            )}
+
+                            {/* Email step */}
+                            {getCurrentStepType(active) === "email" && (
+                                <>
                                     <ProgramTitleCenter classes={classes} logoControls={logoControls} />
                                     <Container size="xs" mt="xl">
                                         <Text mt="md" ta="center">
@@ -744,15 +826,12 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             }
                                         />
                                     </Container>
-                                </Stack>
-                            </Group>
-                        </Stepper.Step>
-                    )}
-                    {/* Password step */}
-                    {userPermissions?.includes("users:self:modify:password") && (
-                        <Stepper.Step label="Set Password" description={`Set your password`}>
-                            <Group justify="center" mb="xl">
-                                <Stack align="center" justify="center" pt="xl">
+                                </>
+                            )}
+
+                            {/* Password step */}
+                            {getCurrentStepType(active) === "password" && (
+                                <>
                                     <ProgramTitleCenter classes={classes} logoControls={logoControls} />
                                     <Container size="xs" mt="xl">
                                         <Text mt="md" ta="center">
@@ -798,219 +877,244 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                         <Progress color={meterColor} value={pwStrength} size={5} mb="xs" />
                                         {checks}
                                     </Container>
-                                </Stack>
-                            </Group>
-                        </Stepper.Step>
-                    )}
-                    {/* OAuth step */}
-                    <Stepper.Step label="OAuth Accounts" description={`Link your accounts`}>
-                        <Group justify="center" mb="xl">
-                            <Stack align="center" justify="center" pt="xl">
-                                <ProgramTitleCenter classes={classes} logoControls={logoControls} />
-                                <Container size="xs" mt="xl">
-                                    <Text mt="md" ta="center">
-                                        You can link your Google account to your profile for easier login and account
-                                        management.
-                                    </Text>
-                                    <Stack mt="md">
-                                        <Group justify="space-between" align="center">
-                                            <Group>
-                                                <Box w={30} h={30}>
-                                                    <Image
-                                                        src="/assets/logos/google.svg"
-                                                        alt="Google Logo"
-                                                        width={30}
-                                                        height={30}
-                                                        style={{ objectFit: "contain" }}
-                                                    />
-                                                </Box>
-                                                <div>
-                                                    <Group>
-                                                        <Text size="sm" fw={500}>
-                                                            Google
-                                                        </Text>
-                                                        <Badge
-                                                            variant="filled"
-                                                            color={userInfo?.oauthLinkedGoogleId ? "green" : "gray"}
-                                                            size="xs"
-                                                        >
-                                                            {userInfo?.oauthLinkedGoogleId ? "Linked" : "Not Linked"}
-                                                        </Badge>
-                                                    </Group>
-                                                    <Text size="xs" c="dimmed">
-                                                        Link your Google account for quick sign-in
-                                                    </Text>
-                                                </div>
-                                            </Group>
-                                            {userInfo?.oauthLinkedGoogleId ? (
-                                                <Button
-                                                    variant="light"
-                                                    color="red"
-                                                    size="xs"
-                                                    disabled={!oauthSupport.google}
-                                                    onClick={async () => {
-                                                        try {
-                                                            const { unlinkGoogleAccountPopup } = await import(
-                                                                "@/lib/utils/oauth-popup"
-                                                            );
-                                                            await unlinkGoogleAccountPopup();
+                                </>
+                            )}
 
-                                                            notifications.show({
-                                                                title: "Unlink Successful",
-                                                                message:
-                                                                    "Your Google account has been unlinked successfully.",
-                                                                color: "green",
-                                                            });
-
-                                                            // Refresh user data to update the UI
-                                                            await refetchUserProfile();
-                                                        } catch (error) {
-                                                            customLogger.error(
-                                                                "Failed to unlink Google account:",
-                                                                error
-                                                            );
-                                                            notifications.show({
-                                                                title: "Unlink Failed",
-                                                                message:
-                                                                    error instanceof Error
-                                                                        ? error.message
-                                                                        : "Failed to unlink your Google account. Please try again later.",
-                                                                color: "red",
-                                                            });
-                                                        }
-                                                    }}
-                                                >
-                                                    Unlink Account
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    variant="light"
-                                                    color="red"
-                                                    size="xs"
-                                                    disabled={!oauthSupport.google}
-                                                    onClick={async () => {
-                                                        try {
-                                                            const { linkGoogleAccountPopup } = await import(
-                                                                "@/lib/utils/oauth-popup"
-                                                            );
-                                                            await linkGoogleAccountPopup();
-
-                                                            notifications.show({
-                                                                title: "Link Successful",
-                                                                message:
-                                                                    "Your Google account has been linked successfully.",
-                                                                color: "green",
-                                                            });
-
-                                                            // Refresh user data to update the UI
-                                                            await refetchUserProfile();
-                                                        } catch (error) {
-                                                            customLogger.error("Failed to link Google account:", error);
-                                                            notifications.show({
-                                                                title: "Link Failed",
-                                                                message:
-                                                                    error instanceof Error
-                                                                        ? error.message
-                                                                        : "Failed to link your Google account. Please try again later.",
-                                                                color: "red",
-                                                            });
-                                                        }
-                                                    }}
-                                                >
-                                                    Link Account
-                                                </Button>
-                                            )}
-                                        </Group>
-                                    </Stack>
-                                    <Text size="sm" c="dimmed" ta="center" mt="md">
-                                        This step is optional and can be done later in the profile settings.
-                                    </Text>
-                                </Container>
-                            </Stack>
-                        </Group>
-                    </Stepper.Step>
-                    {/* Completed step */}
-                    <Stepper.Completed>
-                        <Group justify="center" mb="xl">
-                            <Stack align="center" justify="center" pt="xl">
-                                <ProgramTitleCenter classes={classes} logoControls={logoControls} />
-                                <Container size="xs" mt="xl">
-                                    <Text mt="md" ta="center">
-                                        You have successfully completed the onboarding process! Your account is now set
-                                        up and ready to use. If you need to make any changes later, you can do so in the
-                                        profile settings.
-                                    </Text>
-                                    <Table mt="md">
-                                        <Table.Tr>
-                                            <Table.Td c="dimmed" align="right">
-                                                Your name
-                                            </Table.Td>
-                                            <Table.Td>
-                                                {userChange.getValues().nameFirst} {userChange.getValues().nameMiddle}{" "}
-                                                {userChange.getValues().nameLast}
-                                            </Table.Td>
-                                        </Table.Tr>
-                                        <Table.Tr>
-                                            <Table.Td c="dimmed" align="right">
-                                                Your username
-                                            </Table.Td>
-                                            <Table.Td>{userChange.getValues().username}</Table.Td>
-                                        </Table.Tr>
-                                        <Table.Tr>
-                                            <Table.Td c="dimmed" align="right">
-                                                Your email
-                                            </Table.Td>
-                                            <Table.Td>{userChange.getValues().email}</Table.Td>
-                                        </Table.Tr>
-                                        <Table.Tr>
-                                            <Table.Td c="dimmed" align="right">
-                                                Your position
-                                            </Table.Td>
-                                            <Table.Td>{userChange.getValues().position}</Table.Td>
-                                        </Table.Tr>
-                                        <Table.Tr>
-                                            <Table.Td c="dimmed" align="right">
-                                                OAuth Accounts
-                                            </Table.Td>
-                                            <Table.Td>
-                                                {!userInfo?.oauthLinkedGoogleId && (
-                                                    <Text size="sm" c="dimmed">
-                                                        No accounts linked
-                                                    </Text>
-                                                )}
-                                                {userInfo?.oauthLinkedGoogleId && (
-                                                    <Badge variant="light" c="red" mr={4}>
+                            {/* OAuth step */}
+                            {getCurrentStepType(active) === "oauth" && (
+                                <>
+                                    <ProgramTitleCenter classes={classes} logoControls={logoControls} />
+                                    <Container size="xs" mt="xl">
+                                        <Text mt="md" ta="center">
+                                            You can link your Google account to your profile for easier login and
+                                            account management.
+                                        </Text>
+                                        <Stack mt="md">
+                                            <Group justify="space-between" align="center" wrap="wrap" gap="md">
+                                                <Group wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                                                    <Box w={30} h={30} style={{ flexShrink: 0 }}>
                                                         <Image
                                                             src="/assets/logos/google.svg"
                                                             alt="Google Logo"
-                                                            width={16}
-                                                            height={16}
-                                                            style={{ objectFit: "contain", marginRight: 4 }}
+                                                            width={30}
+                                                            height={30}
+                                                            style={{ objectFit: "contain" }}
                                                         />
-                                                    </Badge>
-                                                )}
-                                            </Table.Td>
-                                        </Table.Tr>
-                                    </Table>
-                                </Container>
-                            </Stack>
-                        </Group>
-                    </Stepper.Completed>
-                </Stepper>
-                <Group justify="center" mt="xl">
-                    <Button variant="default" onClick={prevStep} disabled={active === 0}>
-                        Back
-                    </Button>
-                    <Button onClick={nextStep} loading={buttonLoading} disabled={!validateCurrentStep(active)}>
-                        {nextLabel}
-                    </Button>
-                </Group>
-                {!validateCurrentStep(active) && active < maxSteps && (
-                    <Text size="sm" c="red" ta="center" mt="xs">
-                        Please fill out all required fields to continue
-                    </Text>
-                )}
-            </form>
+                                                    </Box>
+                                                    <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                                                        <Group gap="xs" wrap="wrap">
+                                                            <Text size="sm" fw={500}>
+                                                                Google
+                                                            </Text>
+                                                            <Badge
+                                                                variant="filled"
+                                                                color={userInfo?.oauthLinkedGoogleId ? "green" : "gray"}
+                                                                size="xs"
+                                                            >
+                                                                {userInfo?.oauthLinkedGoogleId
+                                                                    ? "Linked"
+                                                                    : "Not Linked"}
+                                                            </Badge>
+                                                        </Group>
+                                                        <Text size="xs" c="dimmed">
+                                                            Link your Google account for quick sign-in
+                                                        </Text>
+                                                    </Stack>
+                                                </Group>
+                                                <Box style={{ flexShrink: 0 }}>
+                                                    {userInfo?.oauthLinkedGoogleId ? (
+                                                        <Button
+                                                            variant="light"
+                                                            color="red"
+                                                            size="xs"
+                                                            disabled={!oauthSupport.google}
+                                                            onClick={async () => {
+                                                                try {
+                                                                    const { unlinkGoogleAccountPopup } = await import(
+                                                                        "@/lib/utils/oauth-popup"
+                                                                    );
+                                                                    await unlinkGoogleAccountPopup();
+
+                                                                    notifications.show({
+                                                                        title: "Unlink Successful",
+                                                                        message:
+                                                                            "Your Google account has been unlinked successfully.",
+                                                                        color: "green",
+                                                                    });
+
+                                                                    // Refresh user data to update the UI
+                                                                    await refetchUserProfile();
+                                                                } catch (error) {
+                                                                    customLogger.error(
+                                                                        "Failed to unlink Google account:",
+                                                                        error
+                                                                    );
+                                                                    notifications.show({
+                                                                        title: "Unlink Failed",
+                                                                        message:
+                                                                            error instanceof Error
+                                                                                ? error.message
+                                                                                : "Failed to unlink your Google account. Please try again later.",
+                                                                        color: "red",
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            Unlink Account
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            variant="light"
+                                                            color="red"
+                                                            size="xs"
+                                                            disabled={!oauthSupport.google}
+                                                            onClick={async () => {
+                                                                try {
+                                                                    const { linkGoogleAccountPopup } = await import(
+                                                                        "@/lib/utils/oauth-popup"
+                                                                    );
+                                                                    await linkGoogleAccountPopup();
+
+                                                                    notifications.show({
+                                                                        title: "Link Successful",
+                                                                        message:
+                                                                            "Your Google account has been linked successfully.",
+                                                                        color: "green",
+                                                                    });
+
+                                                                    // Refresh user data to update the UI
+                                                                    await refetchUserProfile();
+                                                                } catch (error) {
+                                                                    customLogger.error(
+                                                                        "Failed to link Google account:",
+                                                                        error
+                                                                    );
+                                                                    notifications.show({
+                                                                        title: "Link Failed",
+                                                                        message:
+                                                                            error instanceof Error
+                                                                                ? error.message
+                                                                                : "Failed to link your Google account. Please try again later.",
+                                                                        color: "red",
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            Link Account
+                                                        </Button>
+                                                    )}
+                                                </Box>
+                                            </Group>
+                                        </Stack>
+                                        <Text size="xs" c="dimmed" ta="center" mt="md">
+                                            This step is optional and can be done later in the profile settings.
+                                        </Text>
+                                    </Container>
+                                </>
+                            )}
+
+                            {/* Completed step */}
+                            {active === maxSteps && (
+                                <>
+                                    <ProgramTitleCenter classes={classes} logoControls={logoControls} />
+                                    <Container size="xs" mt="xl">
+                                        <Text mt="md" ta="center">
+                                            You have successfully completed the onboarding process! Your account is now
+                                            set up and ready to use. If you need to make any changes later, you can do
+                                            so in the profile settings.
+                                        </Text>
+                                        <Table mt="md">
+                                            <Table.Tr>
+                                                <Table.Td c="dimmed" align="right">
+                                                    Your name
+                                                </Table.Td>
+                                                <Table.Td>
+                                                    {userChange.getValues().nameFirst}{" "}
+                                                    {userChange.getValues().nameMiddle}{" "}
+                                                    {userChange.getValues().nameLast}
+                                                </Table.Td>
+                                            </Table.Tr>
+                                            <Table.Tr>
+                                                <Table.Td c="dimmed" align="right">
+                                                    Your username
+                                                </Table.Td>
+                                                <Table.Td>{userChange.getValues().username}</Table.Td>
+                                            </Table.Tr>
+                                            <Table.Tr>
+                                                <Table.Td c="dimmed" align="right">
+                                                    Your email
+                                                </Table.Td>
+                                                <Table.Td>{userChange.getValues().email}</Table.Td>
+                                            </Table.Tr>
+                                            <Table.Tr>
+                                                <Table.Td c="dimmed" align="right">
+                                                    Your position
+                                                </Table.Td>
+                                                <Table.Td>{userChange.getValues().position}</Table.Td>
+                                            </Table.Tr>
+                                            <Table.Tr>
+                                                <Table.Td c="dimmed" align="right">
+                                                    OAuth Accounts
+                                                </Table.Td>
+                                                <Table.Td>
+                                                    {!userInfo?.oauthLinkedGoogleId && (
+                                                        <Text size="sm" c="dimmed">
+                                                            No accounts linked
+                                                        </Text>
+                                                    )}
+                                                    {userInfo?.oauthLinkedGoogleId && (
+                                                        <Badge variant="light" c="red" mr={4}>
+                                                            <Image
+                                                                src="/assets/logos/google.svg"
+                                                                alt="Google Logo"
+                                                                width={16}
+                                                                height={16}
+                                                                style={{ objectFit: "contain", marginRight: 4 }}
+                                                            />
+                                                        </Badge>
+                                                    )}
+                                                </Table.Td>
+                                            </Table.Tr>
+                                        </Table>
+                                    </Container>
+                                </>
+                            )}
+                        </Stack>
+                    </Stack>
+
+                    {/* Navigation buttons - responsive positioning */}
+                    <Group
+                        justify="center"
+                        mt="xl"
+                        gap="md"
+                        style={{
+                            position: "sticky",
+                            bottom: 0,
+                            backgroundColor: "var(--mantine-color-body)",
+                            padding: "var(--mantine-spacing-md) 0",
+                            borderTop: "1px solid var(--mantine-color-gray-3)",
+                        }}
+                    >
+                        <Button variant="default" onClick={prevStep} disabled={active === 0} size="md">
+                            Back
+                        </Button>
+                        <Button
+                            onClick={nextStep}
+                            loading={buttonLoading}
+                            disabled={!validateCurrentStep(active)}
+                            size="md"
+                        >
+                            {nextLabel}
+                        </Button>
+                    </Group>
+
+                    {!validateCurrentStep(active) && active < maxSteps && (
+                        <Text size="sm" c="red" ta="center" mt="xs" px="md">
+                            Please fill out all required fields to continue
+                        </Text>
+                    )}
+                </form>
+            </Container>
         </Modal>
     );
 }

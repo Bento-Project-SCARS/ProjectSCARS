@@ -145,7 +145,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                     type: "daily",
                     status: dailyReport?.reportStatus || "not-created",
                     icon: IconCash,
-                    route: `/reports/sales`,
+                    route: `/reports/sales?year=${year}&month=${month}`,
                 });
             } catch (error) {
                 customLogger.warn("Daily report not found or error fetching:", error);
@@ -156,7 +156,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                     type: "daily",
                     status: "not-created",
                     icon: IconCash,
-                    route: `/reports/sales`,
+                    route: `/reports/sales?year=${year}&month=${month}`,
                 });
             }
 
@@ -176,7 +176,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                     type: "payroll",
                     status: payrollReport?.reportStatus || "not-created",
                     icon: IconUsers,
-                    route: `/reports/payroll`,
+                    route: `/reports/payroll?year=${year}&month=${month}`,
                 });
             } catch (error) {
                 customLogger.warn("Payroll report not found or error fetching:", error);
@@ -187,7 +187,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                     type: "payroll",
                     status: "not-created",
                     icon: IconUsers,
-                    route: `/reports/payroll`,
+                    route: `/reports/payroll?year=${year}&month=${month}`,
                 });
             }
 
@@ -216,7 +216,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                             category: category.key,
                             status: reportStatus,
                             icon: IconReceipt,
-                            route: `/reports/liquidation-report?category=${category.key}`,
+                            route: `/reports/liquidation-report?category=${category.key}&year=${year}&month=${month}`,
                         });
                     } else {
                         // API succeeded but returned empty/null data - report doesn't exist
@@ -227,7 +227,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                             category: category.key,
                             status: "not-created",
                             icon: IconReceipt,
-                            route: `/reports/liquidation-report?category=${category.key}`,
+                            route: `/reports/liquidation-report?category=${category.key}&year=${year}&month=${month}`,
                         });
                     }
                 } catch (error) {
@@ -240,7 +240,7 @@ export function MonthlyReportDetailsModal({ opened, onClose, report, onDelete }:
                         category: category.key,
                         status: "not-created",
                         icon: IconReceipt,
-                        route: `/reports/liquidation-report?category=${category.key}`,
+                        route: `/reports/liquidation-report?category=${category.key}&year=${year}&month=${month}`,
                     });
                 }
             }

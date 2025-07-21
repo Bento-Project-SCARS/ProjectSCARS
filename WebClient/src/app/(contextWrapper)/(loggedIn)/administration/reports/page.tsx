@@ -24,6 +24,7 @@ import {
     Modal,
     Pagination,
     Paper,
+    ScrollArea,
     Select,
     Stack,
     Table,
@@ -344,13 +345,15 @@ export default function ReportsPage() {
                                 <Text size="sm">{dayjs(report.id).format("MMMM YYYY")}</Text>
                             </div>
                         </Table.Td>
-                        <Table.Td>                                <Text size="sm" c="dimmed">
-                                    {formatUTCDateOnlyLocalized(report.lastModified, "en-US", {
-                                        month: "2-digit",
-                                        day: "2-digit",
-                                        year: "numeric",
-                                    })}
-                                </Text>
+                        <Table.Td>
+                            {" "}
+                            <Text size="sm" c="dimmed">
+                                {formatUTCDateOnlyLocalized(report.lastModified, "en-US", {
+                                    month: "2-digit",
+                                    day: "2-digit",
+                                    year: "numeric",
+                                })}
+                            </Text>
                         </Table.Td>
                         <Table.Td>
                             <Menu withinPortal position="bottom-end" shadow="sm">
@@ -406,160 +409,171 @@ export default function ReportsPage() {
     );
 
     return (
-        <Stack gap="lg">
-            {/* Filters and Search */}
-            <Paper shadow="xs" p="md">
-                <Flex gap="md" align="center" wrap="wrap">
-                    <TextInput
-                        placeholder="Type report name here"
-                        leftSection={<IconSearch size={16} />}
-                        value={search}
-                        onChange={(e) => setSearch(e.currentTarget.value)}
-                        style={{ flex: 1, minWidth: 200 }}
-                    />
-                    <Select
-                        placeholder="Filter by status"
-                        leftSection={<IconFilter size={16} />}
-                        value={statusFilter}
-                        onChange={(value) => setStatusFilter(value ?? "all")}
-                        data={[
-                            { value: "all", label: "All Status" },
-                            { value: "draft", label: "Draft" },
-                            { value: "review", label: "Under Review" },
-                            { value: "approved", label: "Approved" },
-                            { value: "rejected", label: "Rejected" },
-                            { value: "received", label: "Received" },
-                            { value: "archived", label: "Archived" },
-                        ]}
-                        w={180}
-                    />
-                    <Checkbox
-                        label="Show archived reports"
-                        checked={showArchived}
-                        onChange={(event) => setShowArchived(event.currentTarget.checked)}
-                        size="sm"
-                    />
-                </Flex>
-            </Paper>
-
-            {/* Bulk Actions */}
-            {selectedReports.length > 0 && (
-                <Paper shadow="xs" p="md">
-                    <Flex align="center" gap="md">
-                        <Text size="sm">{selectedReports.length} reports selected</Text>
-                        <ActionIcon variant="light" size="sm" aria-label="Download">
-                            <IconDownload size={16} />
-                        </ActionIcon>
-                        {canCreateReports && (
-                            <ActionIcon variant="light" color="red" size="sm" aria-label="Delete">
-                                <IconTrash size={16} />
-                            </ActionIcon>
-                        )}
+        <Container size="xl" py={{ base: "sm", md: "md" }}>
+            <Stack gap="lg">
+                {/* Filters and Search */}
+                <Paper shadow="xs" p={{ base: "sm", md: "md" }}>
+                    <Flex gap="md" align="center" wrap="wrap">
+                        <TextInput
+                            placeholder="Type report name here"
+                            leftSection={<IconSearch size={16} />}
+                            value={search}
+                            onChange={(e) => setSearch(e.currentTarget.value)}
+                            style={{ flex: 1, minWidth: 200 }}
+                        />
+                        <Select
+                            placeholder="Filter by status"
+                            leftSection={<IconFilter size={16} />}
+                            value={statusFilter}
+                            onChange={(value) => setStatusFilter(value ?? "all")}
+                            data={[
+                                { value: "all", label: "All Status" },
+                                { value: "draft", label: "Draft" },
+                                { value: "review", label: "Under Review" },
+                                { value: "approved", label: "Approved" },
+                                { value: "rejected", label: "Rejected" },
+                                { value: "received", label: "Received" },
+                                { value: "archived", label: "Archived" },
+                            ]}
+                            w={{ base: "auto", sm: 180 }}
+                        />
+                        <Checkbox
+                            label="Show archived reports"
+                            checked={showArchived}
+                            onChange={(event) => setShowArchived(event.currentTarget.checked)}
+                            size="sm"
+                        />
                     </Flex>
                 </Paper>
-            )}
 
-            {/* Reports Table */}
-            <Paper shadow="xs">
-                <Table highlightOnHover>
-                    <Table.Thead>
-                        <Table.Tr>
-                            <Table.Th>
-                                <Checkbox
-                                    checked={
-                                        selectedReports.length === filteredReports.length && filteredReports.length > 0
-                                    }
-                                    indeterminate={
-                                        selectedReports.length > 0 && selectedReports.length < filteredReports.length
-                                    }
-                                    onChange={(e) => handleSelectAll(e.currentTarget.checked)}
-                                />
-                            </Table.Th>
-                            <Table.Th>Report Name</Table.Th>
-                            <Table.Th>Status</Table.Th>
-                            <Table.Th>Period</Table.Th>
-                            <Table.Th>Last Modified</Table.Th>
-                            <Table.Th></Table.Th>
-                        </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>{rows}</Table.Tbody>
-                </Table>
-
-                {filteredReports.length === 0 && (
-                    <Paper pb="xl" ta="center">
-                        <Container size="xl" mt={50} style={{ textAlign: "center" }}>
-                            <IconFileSad
-                                size={64}
-                                style={{ margin: "auto", display: "block" }}
-                                color="var(--mantine-color-dimmed)"
-                            />
-                            <Text size="lg" mt="xl" c="dimmed">
-                                No Reports Found
-                            </Text>
-                        </Container>
+                {/* Bulk Actions */}
+                {selectedReports.length > 0 && (
+                    <Paper shadow="xs" p="md">
+                        <Flex align="center" gap="md">
+                            <Text size="sm">{selectedReports.length} reports selected</Text>
+                            <ActionIcon variant="light" size="sm" aria-label="Download">
+                                <IconDownload size={16} />
+                            </ActionIcon>
+                            {canCreateReports && (
+                                <ActionIcon variant="light" color="red" size="sm" aria-label="Delete">
+                                    <IconTrash size={16} />
+                                </ActionIcon>
+                            )}
+                        </Flex>
                     </Paper>
                 )}
-            </Paper>
 
-            {/* Pagination */}
-            <Group justify="center">
-                <Pagination total={Math.ceil(filteredReports.length / 10)} />
-            </Group>
+                {/* Reports Table */}
+                <Paper shadow="xs">
+                    <ScrollArea>
+                        <Table highlightOnHover>
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th>
+                                        <Checkbox
+                                            checked={
+                                                selectedReports.length === filteredReports.length &&
+                                                filteredReports.length > 0
+                                            }
+                                            indeterminate={
+                                                selectedReports.length > 0 &&
+                                                selectedReports.length < filteredReports.length
+                                            }
+                                            onChange={(e) => handleSelectAll(e.currentTarget.checked)}
+                                        />
+                                    </Table.Th>
+                                    <Table.Th>Report Name</Table.Th>
+                                    <Table.Th>Status</Table.Th>
+                                    <Table.Th>Period</Table.Th>
+                                    <Table.Th>Last Modified</Table.Th>
+                                    <Table.Th></Table.Th>
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>{rows}</Table.Tbody>
+                        </Table>
+                    </ScrollArea>
 
-            {/* Monthly Report Details Modal */}
-            <MonthlyReportDetailsModal
-                opened={detailsModalOpened}
-                onClose={handleCloseDetailsModal}
-                report={selectedReport}
-                onDelete={handleDeleteReport}
-            />
+                    {filteredReports.length === 0 && (
+                        <Paper pb="xl" ta="center">
+                            <Container size="xl" mt={50} style={{ textAlign: "center" }}>
+                                <IconFileSad
+                                    size={64}
+                                    style={{ margin: "auto", display: "block" }}
+                                    color="var(--mantine-color-dimmed)"
+                                />
+                                <Text size="lg" mt="xl" c="dimmed">
+                                    No Reports Found
+                                </Text>
+                            </Container>
+                        </Paper>
+                    )}
+                </Paper>
 
-            {/* Monthly Report Edit Modal */}
-            <MonthlyReportEditModal
-                opened={editModalOpened}
-                onClose={handleCloseEditModal}
-                report={selectedReport}
-                onUpdate={handleReportUpdate}
-            />
+                {/* Pagination */}
+                <Group justify="center">
+                    <Pagination total={Math.ceil(filteredReports.length / 10)} />
+                </Group>
 
-            {/* Delete Confirmation Modal */}
-            <Modal opened={deleteConfirmModalOpened} onClose={cancelDeleteReport} title="Confirm Deletion" centered>
-                <Stack gap="md">
-                    <Text>
-                        Are you sure you want to delete this monthly report? This action cannot be undone and will
-                        permanently remove the report and all related data.
-                    </Text>
-                    <Group justify="flex-end" gap="sm">
-                        <Button variant="default" onClick={cancelDeleteReport}>
-                            Cancel
-                        </Button>
-                        <Button color="red" onClick={confirmDeleteReport}>
-                            Delete Report
-                        </Button>
-                    </Group>
-                </Stack>
-            </Modal>
+                {/* Monthly Report Details Modal */}
+                <MonthlyReportDetailsModal
+                    opened={detailsModalOpened}
+                    onClose={handleCloseDetailsModal}
+                    report={selectedReport}
+                    onDelete={handleDeleteReport}
+                />
 
-            {/* Archive Confirmation Modal */}
-            <Modal opened={archiveConfirmModalOpened} onClose={cancelArchiveReport} title="Confirm Archive" centered>
-                <Stack gap="md">
-                    <Text>
-                        Are you sure you want to archive this monthly report? This action cannot be undone. Archived
-                        reports will be hidden from the main view and cannot be modified.
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                        Report: <strong>{reportToArchive?.name}</strong>
-                    </Text>
-                    <Group justify="flex-end" gap="sm">
-                        <Button variant="default" onClick={cancelArchiveReport}>
-                            Cancel
-                        </Button>
-                        <Button color="orange" onClick={confirmArchiveReport}>
-                            Archive Report
-                        </Button>
-                    </Group>
-                </Stack>
-            </Modal>
-        </Stack>
+                {/* Monthly Report Edit Modal */}
+                <MonthlyReportEditModal
+                    opened={editModalOpened}
+                    onClose={handleCloseEditModal}
+                    report={selectedReport}
+                    onUpdate={handleReportUpdate}
+                />
+
+                {/* Delete Confirmation Modal */}
+                <Modal opened={deleteConfirmModalOpened} onClose={cancelDeleteReport} title="Confirm Deletion" centered>
+                    <Stack gap="md">
+                        <Text>
+                            Are you sure you want to delete this monthly report? This action cannot be undone and will
+                            permanently remove the report and all related data.
+                        </Text>
+                        <Group justify="flex-end" gap="sm">
+                            <Button variant="default" onClick={cancelDeleteReport}>
+                                Cancel
+                            </Button>
+                            <Button color="red" onClick={confirmDeleteReport}>
+                                Delete Report
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Modal>
+
+                {/* Archive Confirmation Modal */}
+                <Modal
+                    opened={archiveConfirmModalOpened}
+                    onClose={cancelArchiveReport}
+                    title="Confirm Archive"
+                    centered
+                >
+                    <Stack gap="md">
+                        <Text>
+                            Are you sure you want to archive this monthly report? This action cannot be undone. Archived
+                            reports will be hidden from the main view and cannot be modified.
+                        </Text>
+                        <Text size="sm" c="dimmed">
+                            Report: <strong>{reportToArchive?.name}</strong>
+                        </Text>
+                        <Group justify="flex-end" gap="sm">
+                            <Button variant="default" onClick={cancelArchiveReport}>
+                                Cancel
+                            </Button>
+                            <Button color="orange" onClick={confirmArchiveReport}>
+                                Archive Report
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Modal>
+            </Stack>
+        </Container>
     );
 }

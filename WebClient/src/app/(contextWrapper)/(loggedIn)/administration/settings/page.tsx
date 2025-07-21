@@ -161,32 +161,6 @@ export default function SettingsPage() {
             <form onSubmit={form.onSubmit(handleSubmit)}>
                 <Stack gap="xl">
                     <Accordion variant="contained" multiple>
-                        <Accordion.Item value="debug">
-                            <Accordion.Control>Debug Settings</Accordion.Control>
-                            <Accordion.Panel>
-                                <Stack>
-                                    <Switch
-                                        label="Debug Mode"
-                                        description="Enable debug logging and verbose output"
-                                        key={form.key("debug.enabled")}
-                                        {...form.getInputProps("debug.enabled", { type: "checkbox" })}
-                                    />
-                                    <Switch
-                                        label="Log Environment Opt-out"
-                                        description="Prevent environment variables from being logged"
-                                        key={form.key("debug.logenv_optout")}
-                                        {...form.getInputProps("debug.logenv_optout", { type: "checkbox" })}
-                                    />
-                                    <Switch
-                                        label="Show SQL"
-                                        description="Display SQL queries in debug output"
-                                        key={form.key("debug.show_sql")}
-                                        {...form.getInputProps("debug.show_sql", { type: "checkbox" })}
-                                    />
-                                </Stack>
-                            </Accordion.Panel>
-                        </Accordion.Item>
-
                         <Accordion.Item value="connection">
                             <Accordion.Control>Connection Settings</Accordion.Control>
                             <Accordion.Panel>
@@ -197,54 +171,6 @@ export default function SettingsPage() {
                                         description="The base URL used for generating links and redirects"
                                         key={form.key("connection.base_url")}
                                         {...form.getInputProps("connection.base_url")}
-                                    />
-                                </Stack>
-                            </Accordion.Panel>
-                        </Accordion.Item>
-
-                        <Accordion.Item value="logging">
-                            <Accordion.Control>Logging Settings</Accordion.Control>
-                            <Accordion.Panel>
-                                <Stack>
-                                    <TextInput
-                                        label="Log File Path"
-                                        placeholder="./logs/centralserver.log"
-                                        key={form.key("logging.filepath")}
-                                        {...form.getInputProps("logging.filepath")}
-                                    />
-                                    <NumberInput
-                                        label="Max Bytes"
-                                        placeholder="10485760"
-                                        min={1}
-                                        description="Maximum size of log file before rotation"
-                                        key={form.key("logging.max_bytes")}
-                                        {...form.getInputProps("logging.max_bytes")}
-                                    />
-                                    <NumberInput
-                                        label="Backup Count"
-                                        placeholder="5"
-                                        min={0}
-                                        description="Number of backup log files to keep"
-                                        key={form.key("logging.backup_count")}
-                                        {...form.getInputProps("logging.backup_count")}
-                                    />
-                                    <TextInput
-                                        label="Encoding"
-                                        placeholder="utf-8"
-                                        key={form.key("logging.encoding")}
-                                        {...form.getInputProps("logging.encoding")}
-                                    />
-                                    <TextInput
-                                        label="Log Format"
-                                        placeholder="%(asctime)s:%(name)s:%(levelname)s:%(message)s"
-                                        key={form.key("logging.log_format")}
-                                        {...form.getInputProps("logging.log_format")}
-                                    />
-                                    <TextInput
-                                        label="Date Format"
-                                        placeholder="%d-%m-%y_%H-%M-%S"
-                                        key={form.key("logging.date_format")}
-                                        {...form.getInputProps("logging.date_format")}
                                     />
                                 </Stack>
                             </Accordion.Panel>

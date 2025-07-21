@@ -3,6 +3,7 @@ from sqlmodel import Session, select
 from centralserver.internals.exceptions import NotificationNotFoundError
 from centralserver.internals.logger import LoggerFactory
 from centralserver.internals.models.notification import Notification, NotificationType
+from centralserver.internals.websocket_manager import websocket_manager
 
 logger = LoggerFactory().get_logger(__name__)
 
@@ -127,6 +128,27 @@ async def push_notification(
     session.add(notification)
     session.commit()
     session.refresh(notification)
+
+    # Send WebSocket notification to the user about the new notification
+    # Do this after committing to avoid holding the session during WebSocket operations
+    try:
+        await websocket_manager.send_to_user(
+            str(owner_id),
+            {
+                "type": "new_notification",
+                "data": {"notification": notification.model_dump()},
+            },
+        )
+        logger.debug(
+            "New notification created and sent via WebSocket for user %s", owner_id
+        )
+    except Exception as e:
+        # Don't fail the notification creation if WebSocket fails
+        logger.warning(
+            "Failed to send WebSocket notification for user %s: %s", owner_id, e
+        )
+
+    return notification
 
 
 async def archive_notification(

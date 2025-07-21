@@ -107,6 +107,7 @@ dependencies = [
     { name = "sqlmodel" },
     { name = "types-pillow" },
     { name = "uvicorn" },
+    { name = "websockets" },
 ]
 
 [package.optional-dependencies]
@@ -146,6 +147,7 @@ requires-dist = [
     { name = "sqlmodel", specifier = ">=0.0.24" },
     { name = "types-pillow", specifier = ">=10.2.0.20240822" },
     { name = "uvicorn", specifier = ">=0.34.0" },
+    { name = "websockets", specifier = ">=13.1" },
 ]
 provides-extras = ["ai"]
 

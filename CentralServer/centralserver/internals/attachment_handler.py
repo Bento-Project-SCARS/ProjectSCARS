@@ -1,4 +1,5 @@
 import json
+import time
 import uuid
 
 from fastapi import HTTPException, UploadFile, status
@@ -56,7 +57,7 @@ async def upload_report_attachment(
         object_store_manager = await get_object_store_handler(app_config.object_store)
 
         # Generate a unique filename using timestamp
-        unique_filename = f"{uuid.uuid4()}_{file.filename}"
+        unique_filename = f"{uuid.uuid4()}-{time.strftime('%Y%m%d%H%M%S')}"
 
         # Upload to object storage
         bucket_object = await object_store_manager.put(

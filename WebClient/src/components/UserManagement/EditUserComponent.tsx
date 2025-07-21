@@ -216,6 +216,20 @@ export function EditUserComponent({
             return;
         }
 
+        // Check if user with this role can be assigned to a school
+        if (selectedSchool && selectedRole.id !== 4 && selectedRole.id !== 5) {
+            notifications.show({
+                id: "invalid-role-school-assignment",
+                title: "Invalid Role for School Assignment",
+                message:
+                    "Only principals and canteen managers can be assigned to schools. Please change the role first or remove the school assignment.",
+                color: "red",
+                icon: <IconSendOff />,
+            });
+            buttonStateHandler.close();
+            return;
+        }
+
         // NOTE: Only update fields that have changed
         // For nullable fields, we need to send null explicitly when they are cleared
         const newUserInfo: UserUpdate = {
@@ -372,8 +386,8 @@ export function EditUserComponent({
 
     return (
         <Modal opened={index !== null} onClose={() => setIndex(null)} title="Edit User" centered size="auto">
-            <Group gap="md" justify="apart" style={{ marginBottom: "1rem" }}>
-                <Flex direction="column" gap="md" p="lg">
+            <Group gap="md" justify="apart" wrap="wrap" style={{ marginBottom: "1rem" }}>
+                <Flex direction="column" gap="md" p="lg" style={{ flex: 1, minWidth: "300px" }}>
                     <Center>
                         <Card shadow="sm" radius="xl" withBorder style={{ position: "relative", cursor: "pointer" }}>
                             <FileButton onChange={setAvatar} accept="image/png,image/jpeg">
@@ -519,7 +533,7 @@ export function EditUserComponent({
                         </Table.Tr>
                     </Table>
                 </Flex>
-                <Flex direction="column" gap="md">
+                <Flex direction="column" gap="md" style={{ flex: 1, minWidth: "300px" }}>
                     <form
                         onSubmit={form.onSubmit(handleSave)}
                         onKeyDown={(e) => {
@@ -802,30 +816,45 @@ export function EditUserComponent({
                                 )}
                             </Box>
                         </Tooltip>
-                        <Tooltip
-                            disabled={
-                                userCtx.userInfo?.id === user?.id
-                                    ? userCtx.userPermissions?.includes("users:self:modify:school")
-                                    : userCtx.userPermissions?.includes("users:global:modify:school")
-                            }
-                            label="School cannot be changed"
-                            withArrow
-                        >
-                            <Select
-                                disabled={
-                                    userCtx.userInfo?.id === user?.id
-                                        ? !userCtx.userPermissions?.includes("users:self:modify:school")
-                                        : !userCtx.userPermissions?.includes("users:global:modify:school")
-                                }
-                                label="Assigned School"
-                                placeholder="School"
-                                data={availableSchoolNames}
-                                key={form.key("school")}
-                                clearable
-                                searchable
-                                {...form.getInputProps("school")}
-                            />
-                        </Tooltip>
+                        {(() => {
+                            const currentRoleValue = form.getValues().role;
+                            const currentRole = availableRoles.find((role) => role.description === currentRoleValue);
+                            const canAssignToSchool = currentRole && (currentRole.id === 4 || currentRole.id === 5);
+                            const roleBasedTooltipLabel = canAssignToSchool
+                                ? "School cannot be changed"
+                                : "Only principals and canteen managers can be assigned to schools";
+
+                            return (
+                                <Tooltip
+                                    disabled={
+                                        canAssignToSchool &&
+                                        (userCtx.userInfo?.id === user?.id
+                                            ? userCtx.userPermissions?.includes("users:self:modify:school")
+                                            : userCtx.userPermissions?.includes("users:global:modify:school"))
+                                    }
+                                    label={roleBasedTooltipLabel}
+                                    withArrow
+                                >
+                                    <Select
+                                        disabled={
+                                            !canAssignToSchool ||
+                                            (userCtx.userInfo?.id === user?.id
+                                                ? !userCtx.userPermissions?.includes("users:self:modify:school")
+                                                : !userCtx.userPermissions?.includes("users:global:modify:school"))
+                                        }
+                                        label="Assigned School"
+                                        placeholder={
+                                            canAssignToSchool ? "School" : "Role must be Principal or Canteen Manager"
+                                        }
+                                        data={availableSchoolNames}
+                                        key={form.key("school")}
+                                        clearable
+                                        searchable
+                                        {...form.getInputProps("school")}
+                                    />
+                                </Tooltip>
+                            );
+                        })()}
                         <Tooltip
                             disabled={
                                 userCtx.userInfo?.id === user?.id

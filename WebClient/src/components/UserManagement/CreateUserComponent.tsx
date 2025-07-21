@@ -8,7 +8,7 @@ import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconUserCheck, IconUserExclamation } from "@tabler/icons-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useEffect } from "react";
 
 interface CreateUserComponentProps {
     modalOpen: boolean;
@@ -66,10 +66,35 @@ export function CreateUserComponent({
         [availableRoles]
     );
 
+    // Clear school assignment when role changes to an incompatible one
+    useEffect(() => {
+        if (form.values.role && form.values.assignedSchool) {
+            const roleId = Number(form.values.role);
+            if (roleId !== 4 && roleId !== 5) {
+                form.setFieldValue("assignedSchool", null);
+            }
+        }
+    }, [form.values.role, form.values.assignedSchool, form]);
+
     // Memoize handler functions
     const handleCreateUser = useCallback(
         async (values: typeof form.values) => {
             buttonStateHandler.open();
+
+            // Check if user with this role can be assigned to a school
+            if (values.assignedSchool && values.role && Number(values.role) !== 4 && Number(values.role) !== 5) {
+                notifications.show({
+                    id: "invalid-role-school-assignment",
+                    title: "Invalid Role for School Assignment",
+                    message:
+                        "Only principals and canteen managers can be assigned to schools. Please change the role or remove the school assignment.",
+                    color: "red",
+                    icon: <IconUserExclamation />,
+                });
+                buttonStateHandler.close();
+                return;
+            }
+
             try {
                 const result = await createNewUserV1AuthCreatePost({
                     headers: { Authorization: GetAccessTokenHeader() },
@@ -131,6 +156,14 @@ export function CreateUserComponent({
                         label="Assigned School"
                         placeholder="School"
                         data={schoolOptions}
+                        disabled={
+                            form.values.role ? Number(form.values.role) !== 4 && Number(form.values.role) !== 5 : false
+                        }
+                        description={
+                            form.values.role && Number(form.values.role) !== 4 && Number(form.values.role) !== 5
+                                ? "Only principals and canteen managers can be assigned to schools"
+                                : undefined
+                        }
                         {...form.getInputProps("assignedSchool")}
                     />
                     <Select

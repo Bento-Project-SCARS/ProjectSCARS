@@ -15,6 +15,7 @@ from centralserver.routers import (
     reports_routes,
     schools_routes,
     users_routes,
+    websocket_routes,
 )
 
 logger = LoggerFactory(
@@ -50,6 +51,7 @@ app.include_router(schools_routes.router)
 app.include_router(notification_routes.router)
 app.include_router(reports_routes.router)
 app.include_router(misc_routes.router)
+app.include_router(websocket_routes.router)
 
 app.add_middleware(
     CORSMiddleware,

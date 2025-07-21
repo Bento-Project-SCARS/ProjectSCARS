@@ -12,6 +12,7 @@ from centralserver.internals.config_handler import app_config
 from centralserver.internals.logger import LoggerFactory
 from centralserver.internals.models.object_store import BucketObject
 from centralserver.internals.models.school import School, SchoolCreate
+from centralserver.internals.websocket_manager import websocket_manager
 
 logger = LoggerFactory().get_logger(__name__)
 
@@ -30,6 +31,26 @@ async def create_school(new_school: SchoolCreate, session: Session) -> School:
     session.add(school)
     session.commit()
     session.refresh(school)
+
+    # Send WebSocket notification about new school creation
+    try:
+        await websocket_manager.broadcast_to_all(
+            {
+                "type": "school_management",
+                "management_type": "school_created",
+                "school_id": str(school.id),
+                "data": {"school": school.model_dump()},
+                "timestamp": int(datetime.datetime.now().timestamp()),
+            }
+        )
+        logger.info(
+            "Sent WebSocket school creation notification for school: %s", school.id
+        )
+    except Exception as e:
+        logger.warning(
+            "Failed to send WebSocket notification for school creation: %s", e
+        )
+
     return school
 
 
