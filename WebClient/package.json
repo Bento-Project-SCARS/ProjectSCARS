@@ -54,7 +54,7 @@
     "devDependencies": {
         "@codecov/nextjs-webpack-plugin": "^1.9.1",
         "@eslint/eslintrc": "^3",
-        "@hey-api/openapi-ts": "^0.78.3",
+        "@hey-api/openapi-ts": "^0.79.2",
         "@tailwindcss/postcss": "^4",
         "@testing-library/dom": "^10.4.0",
         "@testing-library/jest-dom": "^6.6.3",
