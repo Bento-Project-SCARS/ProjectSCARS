@@ -3,7 +3,7 @@
 import { LoadingComponent } from "@/components/LoadingComponent/LoadingComponent";
 import { ProgramTitleCenter } from "@/components/ProgramTitleCenter";
 import { resetPasswordV1AuthEmailRecoveryResetPost } from "@/lib/api/csclient";
-import { Button, Container, Paper, PasswordInput, Progress, Text, TextInput } from "@mantine/core";
+import { Anchor, Button, Container, Paper, PasswordInput, Progress, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -212,6 +212,9 @@ function ResetPasswordContent(): React.ReactElement {
                                 Enter your new password and click &quot;Reset Password&quot; to update your account
                                 information.
                             </Text>
+                            <Anchor size="xs" mt="md" c="dimmed" onClick={() => router.back()}>
+                                Go back to previous page
+                            </Anchor>
                         </form>
                     </Paper>
                 </Container>

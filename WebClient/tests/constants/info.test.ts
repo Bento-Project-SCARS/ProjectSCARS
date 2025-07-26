@@ -8,7 +8,7 @@ describe("Info Configuration", () => {
         });
 
         it("has correct program description", () => {
-            expect(Program.description).toBe("Baliwag's Enhanced Network for Tracking Operations");
+            expect(Program.description).toBe("Baliwag Enhanced Network for Tracking Operations");
         });
 
         it("has version information", () => {

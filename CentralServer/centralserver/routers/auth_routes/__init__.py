@@ -31,7 +31,11 @@ from centralserver.internals.mail_handler import get_template, send_mail
 from centralserver.internals.models.role import Role
 from centralserver.internals.models.token import DecodedJWTToken, JWTToken
 from centralserver.internals.models.user import User, UserCreate, UserInvite, UserPublic
-from centralserver.internals.user_handler import create_user, validate_password
+from centralserver.internals.user_handler import (
+    create_user,
+    crypt_ctx,
+    validate_password,
+)
 from centralserver.routers.auth_routes.email import router as email_router
 from centralserver.routers.auth_routes.multifactor import router as multifactor_router
 from centralserver.routers.auth_routes.oauth import google_oauth_adapter
@@ -363,6 +367,129 @@ async def invite_user(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to create user. Please check the provided information.",
+        ) from e
+
+
+@router.post("/resend-invite", response_model=UserPublic)
+async def resend_user_invitation(
+    user_id: Annotated[str, Body(embed=True)],
+    token: logged_in_dep,
+    session: Annotated[Session, Depends(get_db_session)],
+    background_tasks: BackgroundTasks,
+) -> UserPublic:
+    """Resend invitation email to an existing user who hasn't logged in yet.
+
+    Args:
+        user_id: The ID of the user to resend invitation to.
+        token: The decoded JWT token of the logged-in user.
+        session: The database session.
+        background_tasks: Background tasks to run after the request is processed.
+
+    Returns:
+        The user object for whom the invitation was resent.
+    """
+
+    if not await verify_user_permission("users:create", session, token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to resend user invitations.",
+        )
+
+    # Get the requesting user
+    requesting_user = session.get(User, token.id)
+    if not requesting_user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="User not found."
+        )
+
+    # Get the target user to resend invitation to
+    target_user = session.get(User, user_id)
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Target user not found.",
+        )
+
+    # Check if user has an email address
+    if not target_user.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User does not have an email address.",
+        )
+
+    # Check if user has already logged in
+    if target_user.lastLoggedInTime is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User has already logged in. Cannot resend invitation.",
+        )
+
+    # Check permission to invite user with this role
+    if target_user.roleId < requesting_user.roleId:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to resend invitation for a user with this role.",
+        )
+
+    logger.info(
+        "Resending invitation to user: %s (%s)", target_user.username, target_user.email
+    )
+    logger.debug("Resent by user: %s", token.id)
+
+    # Generate a new random password for the user
+    genpass = "".join(random.choices(string.ascii_letters + string.digits, k=12))
+    while not (await validate_password(genpass))[0]:
+        # Regenerate the password if it does not meet the requirements
+        genpass = "".join(random.choices(string.ascii_letters + string.digits, k=12))
+
+    try:
+        # Update the user's password with the new generated password
+        # We already checked users:create permission at the beginning of this function
+        # which is sufficient for resending invitations and updating passwords for uninvited users
+        target_user.password = crypt_ctx.hash(genpass)
+
+        session.add(target_user)
+        session.commit()
+        session.refresh(target_user)
+
+        logger.debug("Updated password for user: %s", target_user.username)
+        user_public = UserPublic.model_validate(target_user)
+
+        logger.debug("Sending resend invitation email to the user")
+        background_tasks.add_task(
+            send_mail,
+            to_address=target_user.email,
+            subject=f"Invitation to {info.Program.name}",
+            text=get_template(
+                "invite.txt",
+                app_name=info.Program.name,
+                name=target_user.nameFirst or target_user.username,
+                username=target_user.username,
+                password=genpass,
+                base_url=app_config.connection.base_url,
+            ),
+            html=get_template(
+                "invite.html",
+                app_name=info.Program.name,
+                name=target_user.nameFirst or target_user.username,
+                username=target_user.username,
+                password=genpass,
+                base_url=app_config.connection.base_url,
+            ),
+        )
+
+        logger.debug(
+            "Returning user information after resending invitation: %s", user_public.id
+        )
+        return user_public
+
+    except (ValueError, AttributeError) as e:
+        logger.error("Failed to resend invitation to user: %s", e)
+        logger.debug("Rolling back the session due to error")
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to resend invitation. Please try again later.",
         ) from e
 
 

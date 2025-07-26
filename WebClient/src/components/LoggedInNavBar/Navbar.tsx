@@ -6,7 +6,6 @@ import {
     IconBuilding,
     IconDashboard,
     IconGraph,
-    IconHelp,
     IconLogout,
     IconNotification,
     IconRefresh,
@@ -14,8 +13,8 @@ import {
     IconSettings,
     IconUser,
 } from "@tabler/icons-react";
-import { usePathname, useRouter } from "next/navigation";
 import { motion } from "motion/react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { getNotificationQuantityV1NotificationsQuantityGet } from "@/lib/api/csclient";
 import { roles } from "@/lib/info";
@@ -23,10 +22,10 @@ import { useAuth } from "@/lib/providers/auth";
 import { useUser } from "@/lib/providers/user";
 import { JSX, useEffect, useState } from "react";
 
-import classes from "./Navbar.module.css";
 import { customLogger } from "@/lib/api/customLogger";
-import { useUserSyncControls } from "@/lib/hooks/useUserSyncControls";
 import { useNotificationWebSocket } from "@/lib/hooks/useNotificationWebSocket";
+import { useUserSyncControls } from "@/lib/hooks/useUserSyncControls";
+import classes from "./Navbar.module.css";
 
 export const Navbar: React.FC = () => {
     const [links, setLinks] = useState<JSX.Element[]>([]);

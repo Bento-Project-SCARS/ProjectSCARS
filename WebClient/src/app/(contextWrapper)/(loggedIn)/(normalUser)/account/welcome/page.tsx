@@ -39,7 +39,7 @@ import {
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconCircleCheck, IconCircleX, IconX } from "@tabler/icons-react";
+import { IconCircleCheck, IconX } from "@tabler/icons-react";
 import { useAnimation } from "motion/react";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -269,7 +269,6 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
             setActive((current) => current + 1);
         } else if (active === maxSteps) {
             handleSubmit();
-            router.push("/");
         }
 
         handleButtonState(active + 1);
@@ -456,6 +455,7 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
 
             // Show completed step
             setActive(maxSteps + 1);
+            router.push("/dashboard");
         } catch (error) {
             customLogger.error("Error updating user information:", error);
             notifications.show({
@@ -652,30 +652,24 @@ function WelcomeContent({ userInfo, userPermissions }: ProfileContentProps) {
                                             up your account. In this onboarding process, you will be able to...
                                         </Text>
                                         <List spacing="xs" center>
-                                            {welcomeSteps.map(([step, hasPermission], index) => (
-                                                <List.Item
-                                                    key={index}
-                                                    icon={
-                                                        <ThemeIcon
-                                                            color={hasPermission ? "green" : "gray"}
-                                                            size={20}
-                                                            radius="xl"
+                                            {welcomeSteps.map(
+                                                ([step, hasPermission], index) =>
+                                                    hasPermission && (
+                                                        <List.Item
+                                                            key={index}
+                                                            icon={
+                                                                <ThemeIcon color="green" size={20} radius="xl">
+                                                                    <IconCircleCheck />
+                                                                </ThemeIcon>
+                                                            }
+                                                            c="dark"
                                                         >
-                                                            {hasPermission ? <IconCircleCheck /> : <IconCircleX />}
-                                                        </ThemeIcon>
-                                                    }
-                                                    c={hasPermission ? "dark" : "gray"}
-                                                >
-                                                    <Text
-                                                        size="sm"
-                                                        style={{
-                                                            textDecoration: hasPermission ? "none" : "line-through",
-                                                        }}
-                                                    >
-                                                        {step}
-                                                    </Text>
-                                                </List.Item>
-                                            ))}
+                                                            <Text size="sm" style={{ textDecoration: "none" }}>
+                                                                {step}
+                                                            </Text>
+                                                        </List.Item>
+                                                    )
+                                            )}
                                         </List>
                                     </Container>
                                 </>

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 describe("Program information", () => {
     it("has correct program details", () => {
         expect(Program.name).toBe("BENTO");
-        expect(Program.description).toBe("Baliwag's Enhanced Network for Tracking Operations");
+        expect(Program.description).toBe("Baliwag Enhanced Network for Tracking Operations");
         expect(Program.version).toMatch(/^\d+\.\d+\.\d+$/);
     });
 

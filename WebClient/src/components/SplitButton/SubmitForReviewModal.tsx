@@ -109,11 +109,11 @@ export function SubmitForReviewModal({
                 );
             }
 
-            notifications.show({
-                title: "Success",
-                message: "Report has been submitted for review successfully.",
-                color: "green",
-            });
+            // notifications.show({
+            //     title: "Success",
+            //     message: "Report has been submitted for review successfully.",
+            //     color: "green",
+            // });
 
             // Reset form state
             setComments("");

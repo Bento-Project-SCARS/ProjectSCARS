@@ -15,6 +15,7 @@ import {
     Select,
     Container,
     Stack,
+    Switch,
 } from "@mantine/core";
 import {
     IconArrowDownRight,
@@ -24,12 +25,14 @@ import {
     IconReceipt2,
     IconUserPlus,
     IconAlertCircle,
+    IconFilter,
 } from "@tabler/icons-react";
 
 import classes from "./Stats.module.css";
 
 import {
     getDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGet,
+    getDailySalesAndPurchasesSummaryFilteredV1ReportsDailySchoolIdYearMonthSummaryFilteredGet,
     School,
     getAllSchoolsEndpointV1SchoolsAllGet,
 } from "@/lib/api/csclient";
@@ -67,6 +70,8 @@ export default function StatisticsPage() {
     const [schools, setSchools] = useState<School[]>([]);
     const [loadingSchools, setLoadingSchools] = useState(true);
     const [viewingAllSchools, setViewingAllSchools] = useState(false);
+    const [includeDrafts, setIncludeDrafts] = useState(true);
+    const [includeReviews, setIncludeReviews] = useState(true); // Default to include reviews
 
     // Fetch all schools for the dropdown
     const fetchSchools = useCallback(async () => {
@@ -98,6 +103,30 @@ export default function StatisticsPage() {
             setLoading(false);
             return;
         }
+
+        // Helper function to fetch summary with fallback
+        const fetchSummaryWithFallback = async (schoolId: number, year: number, month: number) => {
+            try {
+                // Try filtered endpoint first
+                return await getDailySalesAndPurchasesSummaryFilteredV1ReportsDailySchoolIdYearMonthSummaryFilteredGet({
+                    path: { school_id: schoolId, year, month },
+                    query: {
+                        include_drafts: includeDrafts,
+                        include_reviews: includeReviews,
+                        include_approved: true,
+                        include_rejected: true,
+                        include_received: true,
+                        include_archived: true,
+                    },
+                });
+            } catch {
+                // If filtered endpoint fails (404), fallback to original endpoint
+                console.warn("Filtered endpoint not available, falling back to original endpoint");
+                return await getDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGet({
+                    path: { school_id: schoolId, year, month },
+                });
+            }
+        };
 
         try {
             setLoading(true);
@@ -136,14 +165,11 @@ export default function StatisticsPage() {
 
                     try {
                         // Current month data
-                        const currentSummaryResponse =
-                            await getDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGet({
-                                path: {
-                                    school_id: school.id,
-                                    year: currentYear,
-                                    month: currentMonth,
-                                },
-                            });
+                        const currentSummaryResponse = await fetchSummaryWithFallback(
+                            school.id,
+                            currentYear,
+                            currentMonth
+                        );
 
                         if (currentSummaryResponse.data) {
                             totalCurrentSales +=
@@ -162,14 +188,7 @@ export default function StatisticsPage() {
 
                         // Previous month data
                         try {
-                            const prevSummaryResponse =
-                                await getDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGet({
-                                    path: {
-                                        school_id: school.id,
-                                        year: prevYear,
-                                        month: prevMonth,
-                                    },
-                                });
+                            const prevSummaryResponse = await fetchSummaryWithFallback(school.id, prevYear, prevMonth);
 
                             if (prevSummaryResponse.data) {
                                 totalPrevSales +=
@@ -197,14 +216,7 @@ export default function StatisticsPage() {
                             const monthKey = targetDate.format("MMM YYYY");
 
                             try {
-                                const monthSummary =
-                                    await getDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGet({
-                                        path: {
-                                            school_id: school.id,
-                                            year,
-                                            month,
-                                        },
-                                    });
+                                const monthSummary = await fetchSummaryWithFallback(school.id, year, month);
 
                                 if (monthSummary.data) {
                                     const existingData = monthlyDataMap.get(monthKey)!;
@@ -255,26 +267,16 @@ export default function StatisticsPage() {
                 setSchoolInfo(school);
 
                 // Fetch current month summary
-                const currentSummaryResponse =
-                    await getDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGet({
-                        path: {
-                            school_id: selectedSchoolId!,
-                            year: currentYear,
-                            month: currentMonth,
-                        },
-                    });
+                const currentSummaryResponse = await fetchSummaryWithFallback(
+                    selectedSchoolId!,
+                    currentYear,
+                    currentMonth
+                );
 
                 // Fetch previous month summary for comparison
                 let prevSummaryResponse;
                 try {
-                    prevSummaryResponse =
-                        await getDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGet({
-                            path: {
-                                school_id: selectedSchoolId!,
-                                year: prevYear,
-                                month: prevMonth,
-                            },
-                        });
+                    prevSummaryResponse = await fetchSummaryWithFallback(selectedSchoolId!, prevYear, prevMonth);
                 } catch {
                     // Previous month data may not exist
                     prevSummaryResponse = { data: { total_sales: 0, total_purchases: 0, net_income: 0 } };
@@ -288,14 +290,7 @@ export default function StatisticsPage() {
                     const month = targetDate.month() + 1;
 
                     try {
-                        const monthSummary =
-                            await getDailySalesAndPurchasesSummaryV1ReportsDailySchoolIdYearMonthSummaryGet({
-                                path: {
-                                    school_id: selectedSchoolId!,
-                                    year,
-                                    month,
-                                },
-                            });
+                        const monthSummary = await fetchSummaryWithFallback(selectedSchoolId!, year, month);
 
                         if (monthSummary.data) {
                             const sales =
@@ -372,7 +367,7 @@ export default function StatisticsPage() {
         } finally {
             setLoading(false);
         }
-    }, [selectedSchoolId, viewingAllSchools, schools]);
+    }, [selectedSchoolId, viewingAllSchools, schools, includeDrafts, includeReviews]);
 
     useEffect(() => {
         fetchSchools();
@@ -654,6 +649,63 @@ export default function StatisticsPage() {
                         hiddenFrom="sm"
                     />
                 </Stack>
+
+                {/* Filtering Controls - Always show for administrators */}
+                <Card withBorder p={{ base: "sm", md: "md" }} mb="lg">
+                    {/* Desktop Layout */}
+                    <Group justify="space-between" align="center" visibleFrom="md">
+                        <Group gap="xs">
+                            <IconFilter size={20} />
+                            <Text fw={500}>Report Filtering Options</Text>
+                        </Group>
+                        <Group gap="lg">
+                            <Group gap="xs">
+                                <Switch
+                                    checked={includeDrafts}
+                                    onChange={(e) => setIncludeDrafts(e.currentTarget.checked)}
+                                    size="sm"
+                                />
+                                <Text size="sm">Include Draft Reports</Text>
+                            </Group>
+                            <Group gap="xs">
+                                <Switch
+                                    checked={includeReviews}
+                                    onChange={(e) => setIncludeReviews(e.currentTarget.checked)}
+                                    size="sm"
+                                />
+                                <Text size="sm">Include Reports Under Review</Text>
+                            </Group>
+                        </Group>
+                    </Group>
+
+                    {/* Mobile Layout */}
+                    <Stack gap="md" hiddenFrom="md">
+                        <Group gap="xs" justify="center">
+                            <IconFilter size={20} />
+                            <Text fw={500} ta="center">
+                                Report Filtering Options
+                            </Text>
+                        </Group>
+                        <Stack gap="sm">
+                            <Group gap="xs" justify="space-between">
+                                <Text size="sm">Include Draft Reports</Text>
+                                <Switch
+                                    checked={includeDrafts}
+                                    onChange={(e) => setIncludeDrafts(e.currentTarget.checked)}
+                                    size="sm"
+                                />
+                            </Group>
+                            <Group gap="xs" justify="space-between">
+                                <Text size="sm">Include Reports Under Review</Text>
+                                <Switch
+                                    checked={includeReviews}
+                                    onChange={(e) => setIncludeReviews(e.currentTarget.checked)}
+                                    size="sm"
+                                />
+                            </Group>
+                        </Stack>
+                    </Stack>
+                </Card>
 
                 {viewingAllSchools ? (
                     <Text size="lg" mb="md" c="dimmed">

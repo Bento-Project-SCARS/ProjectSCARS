@@ -21,10 +21,10 @@ import {
 } from "@/lib/api/csclient";
 import { customLogger } from "@/lib/api/customLogger";
 import { GetAllSchools } from "@/lib/api/school";
+import { useUserManagementWebSocket } from "@/lib/hooks/useUserManagementWebSocket";
 import { roles } from "@/lib/info";
 import { useUser } from "@/lib/providers/user";
 import { GetAccessTokenHeader } from "@/lib/utils/token";
-import { useUserManagementWebSocket } from "@/lib/hooks/useUserManagementWebSocket";
 import {
     ActionIcon,
     Alert,
@@ -66,8 +66,8 @@ import {
     IconPlus,
     IconSchool,
     IconSearch,
-    IconSendOff,
     IconSelector,
+    IconSendOff,
     IconUser,
     IconUserCheck,
     IconUserExclamation,
@@ -388,6 +388,53 @@ export default function UsersPage(): JSX.Element {
         customLogger.debug(`Editing user ${index}`, user);
         setSelectedUserIndex(index);
         setSelectedUser(user);
+    };
+
+    const handleResendInvitation = async (user: UserPublic) => {
+        try {
+            // Call the new resend invitation endpoint
+            const response = await fetch(`${process.env.NEXT_PUBLIC_CENTRAL_SERVER_ENDPOINT}/v1/auth/resend-invite`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: GetAccessTokenHeader(),
+                },
+                body: JSON.stringify({ user_id: user.id }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            await response.json(); // Parse response but don't need to use it
+
+            notifications.show({
+                id: "invitation-resent",
+                title: "Invitation Resent",
+                message: `User invitation has been resent to ${user.email}. The user should check their email for new login credentials.`,
+                color: "blue",
+                icon: <IconMail />,
+            });
+        } catch (error) {
+            if (error instanceof Error) {
+                notifications.show({
+                    id: "invitation-resend-error",
+                    title: "Error",
+                    message: `Failed to resend invitation: ${error.message}`,
+                    color: "red",
+                    icon: <IconSendOff />,
+                });
+            } else {
+                notifications.show({
+                    id: "invitation-resend-error-unknown",
+                    title: "Error",
+                    message: "Failed to resend invitation. Please try again later.",
+                    color: "red",
+                    icon: <IconSendOff />,
+                });
+            }
+        }
     };
 
     // Handle bulk actions for selected users
@@ -1030,7 +1077,55 @@ export default function UsersPage(): JSX.Element {
                                         <TableTd c={user.deactivated ? "dimmed" : undefined}>
                                             <Group gap="xs" align="center" wrap="nowrap">
                                                 {user.email &&
-                                                    (user.emailVerified ? (
+                                                    (user.lastLoggedInTime === null ? (
+                                                        <Tooltip
+                                                            label={
+                                                                userCtx.userPermissions?.includes("users:create")
+                                                                    ? "Resend User Invitation"
+                                                                    : "Permission required to resend invitation"
+                                                            }
+                                                            position="bottom"
+                                                            withArrow
+                                                        >
+                                                            <motion.div
+                                                                whileTap={{
+                                                                    scale: userCtx.userPermissions?.includes(
+                                                                        "users:create"
+                                                                    )
+                                                                        ? 0.9
+                                                                        : 1,
+                                                                }}
+                                                                whileHover={{
+                                                                    scale: userCtx.userPermissions?.includes(
+                                                                        "users:create"
+                                                                    )
+                                                                        ? 1.05
+                                                                        : 1,
+                                                                }}
+                                                                style={{
+                                                                    display: "flex",
+                                                                    alignItems: "center",
+                                                                    justifyContent: "center",
+                                                                    cursor: userCtx.userPermissions?.includes(
+                                                                        "users:create"
+                                                                    )
+                                                                        ? "pointer"
+                                                                        : "not-allowed",
+                                                                    opacity: userCtx.userPermissions?.includes(
+                                                                        "users:create"
+                                                                    )
+                                                                        ? 1
+                                                                        : 0.5,
+                                                                }}
+                                                            >
+                                                                <IconMailPlus
+                                                                    size={16}
+                                                                    color="var(--mantine-color-blue-6)"
+                                                                    onClick={() => handleResendInvitation(user)}
+                                                                />
+                                                            </motion.div>
+                                                        </Tooltip>
+                                                    ) : user.emailVerified ? (
                                                         <Tooltip label="Email verified" position="bottom" withArrow>
                                                             <IconCircleDashedCheck size={16} color="green" />
                                                         </Tooltip>
@@ -1232,15 +1327,20 @@ export default function UsersPage(): JSX.Element {
                                             </Tooltip>
                                         </TableTd>
                                         <TableTd>
-                                            <Tooltip label="Edit User" position="bottom" openDelay={500} withArrow>
-                                                <ActionIcon
-                                                    variant="light"
-                                                    disabled={!userCtx.userPermissions?.includes("users:global:modify")}
-                                                    onClick={() => handleEdit(index, user)}
-                                                >
-                                                    <IconEdit size={16} />
-                                                </ActionIcon>
-                                            </Tooltip>
+                                            <Group gap="xs" justify="center" align="center">
+                                                <Tooltip label="Edit User" position="bottom" openDelay={500} withArrow>
+                                                    <ActionIcon
+                                                        variant="light"
+                                                        size="md"
+                                                        disabled={
+                                                            !userCtx.userPermissions?.includes("users:global:modify")
+                                                        }
+                                                        onClick={() => handleEdit(index, user)}
+                                                    >
+                                                        <IconEdit size={16} />
+                                                    </ActionIcon>
+                                                </Tooltip>
+                                            </Group>
                                         </TableTd>
                                     </TableTr>
                                 ))
@@ -1366,7 +1466,7 @@ export default function UsersPage(): JSX.Element {
                         setModalOpen={setOpenInviteUserModal}
                         availableSchools={availableSchools}
                         availableRoles={availableRoles}
-                        onUserInvite={(newUser) => {
+                        onUserInvite={() => {
                             // setAllUsers((prev) => [newUser, ...prev]);
                         }}
                     />

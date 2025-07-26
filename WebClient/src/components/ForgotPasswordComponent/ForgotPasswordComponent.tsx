@@ -2,7 +2,7 @@
 
 import { ProgramTitleCenter } from "@/components/ProgramTitleCenter";
 import { requestPasswordRecoveryV1AuthEmailRecoveryRequestPost } from "@/lib/api/csclient";
-import { Button, Container, Paper, Text, TextInput } from "@mantine/core";
+import { Anchor, Button, Container, Paper, Text, TextInput } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -191,6 +191,9 @@ export function ForgotPasswordComponent(): React.ReactElement {
                                 If you have forgotten your password, enter your username and email address to receive a
                                 recovery link.
                             </Text>
+                            <Anchor size="xs" mt="md" c="dimmed" onClick={() => router.back()}>
+                                Go back to previous page
+                            </Anchor>
                         </form>
                     </Paper>
                 </Container>

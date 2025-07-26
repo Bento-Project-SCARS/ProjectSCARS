@@ -642,12 +642,19 @@ function PayrollPageContent() {
         const endOfMonth = dayjs(monthDate).endOf("month");
 
         const weeks: WeekPeriod[] = [];
-        let currentDate = startOfMonth;
         let weekNumber = 1;
 
-        // Group dates by week
-        while (currentDate.isSameOrBefore(endOfMonth)) {
-            const weekStart = currentDate.startOf("week").add(1, "day"); // Monday
+        // Start with the first Monday of the first week that contains any day of the month
+        let currentWeekStart = startOfMonth.startOf("week").add(1, "day"); // First Monday of the week containing month start
+
+        // If the month starts after Monday, we still want to include that week
+        if (currentWeekStart.isAfter(startOfMonth)) {
+            currentWeekStart = currentWeekStart.subtract(7, "days"); // Go to previous Monday
+        }
+
+        // Generate weeks until we've covered the entire month
+        while (currentWeekStart.isSameOrBefore(endOfMonth)) {
+            const weekStart = currentWeekStart;
             const weekEnd = weekStart.add(6, "days"); // Sunday
 
             // Generate working days for this week, only within the month
@@ -687,8 +694,8 @@ function PayrollPageContent() {
                 weekNumber++;
             }
 
-            // Move to next week
-            currentDate = weekEnd.add(1, "day");
+            // Move to next Monday
+            currentWeekStart = currentWeekStart.add(7, "days");
         }
 
         return weeks;
@@ -957,6 +964,7 @@ function PayrollPageContent() {
 
             // Convert our data to the format expected by the API
             const payrollEntries = [];
+
             for (const employee of employees) {
                 for (const week of weekPeriods) {
                     const weekNumber = parseInt(week.id.split("-week-")[1]);
@@ -966,8 +974,10 @@ function PayrollPageContent() {
 
                     for (const workDay of week.workingDays) {
                         const dayOfWeek = dayjs(workDay).day(); // 0 = Sunday, 1 = Monday, etc.
+                        const workDayStr = dayjs(workDay).format("YYYY-MM-DD");
+
                         const record = attendanceRecords.find(
-                            (r) => r.employeeId === employee.id && r.date === dayjs(workDay).format("YYYY-MM-DD")
+                            (r) => r.employeeId === employee.id && r.date === workDayStr
                         );
 
                         if (record?.isPresent) {

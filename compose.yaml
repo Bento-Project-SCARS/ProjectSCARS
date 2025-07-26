@@ -24,6 +24,14 @@ services:
         env_file:
             - ./WebClient/.env.prod
 
+    cloudflared:
+        image: wisdomsky/cloudflared-web:latest
+        restart: unless-stopped
+        ports:
+            - "14333:14333"
+        volumes:
+        - ./CentralServer/system/cloudflared:/config:rw
+
 volumes:
     project_scars-centralserver-data:
         driver: local
