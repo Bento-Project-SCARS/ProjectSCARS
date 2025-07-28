@@ -58,7 +58,7 @@
         "@hey-api/openapi-ts": "^0.78.3",
         "@tailwindcss/postcss": "^4",
         "@testing-library/dom": "^10.4.0",
-        "@testing-library/jest-dom": "^6.6.3",
+        "@testing-library/jest-dom": "^6.6.4",
         "@testing-library/react": "^16.3.0",
         "@testing-library/user-event": "^14.6.1",
         "@types/html2canvas": "^1.0.0",
